@@ -1,9 +1,8 @@
 import Link from "next/link";
 import { Erica_One, Paytone_One } from "next/font/google";
 import { Countdown } from "@/components/public/countdown";
-import { Schedule, type PublicActivity } from "@/components/public/schedule";
 import type { PublicEvent } from "@/lib/api";
-import { eventTimeZone, formatFortalezaDay, fortalezaDay } from "@/server/event-schema";
+import { formatFortalezaDay, fortalezaDay } from "@/server/event-schema";
 
 const paytone = Paytone_One({
   weight: "400",
@@ -73,11 +72,8 @@ function NotebookScene() {
 
 export function EventHome({ event }: { event: PublicEvent }) {
   const signupHref = `/e/${event.slug}/inscricao`;
-  const locations = event.locations ?? [];
-  const activities = withLocations(event.activities ?? [], locations);
   const announcements = event.announcements ?? [];
   const rules = event.rules ?? [];
-  const mapQuery = event.address || event.place;
 
   return (
     <main className="overflow-x-hidden bg-[#FFF7FC] text-[#330043]">
@@ -225,68 +221,23 @@ export function EventHome({ event }: { event: PublicEvent }) {
         </div>
       </section>
 
-      <section id="onde" aria-labelledby="onde-titulo" className="scroll-mt-28 px-4 py-16">
-        <div className="mx-auto max-w-6xl">
-          <h2 id="onde-titulo" className="mx-auto w-fit rounded-full bg-[#6D28D9] px-5 py-2 text-center text-2xl text-white sm:text-3xl">
-            Onde e quando?
-          </h2>
-          <div className="mt-10 grid gap-4 md:grid-cols-2">
-            <article className="rounded-3xl bg-white p-6 shadow-[0_10px_0_#F9A8D4]">
-              <h3 className="text-sm font-bold tracking-widest text-[#DB2777] uppercase">Local do evento</h3>
-              <p className="mt-3 text-2xl font-bold">{event.place || "O local ainda vai ser publicado."}</p>
-              {event.address ? <p className="mt-2">{event.address}</p> : null}
-              {locations.length > 0 ? (
-                <ul className="mt-4 flex flex-wrap gap-2">
-                  {locations.map((location) => (
-                    <li key={location.id} className="rounded-full bg-[#FCE7F3] px-3 py-1 text-sm font-semibold">
-                      {location.name}
-                    </li>
-                  ))}
-                </ul>
-              ) : null}
-            </article>
-            <article className="rounded-3xl bg-white p-6 shadow-[0_10px_0_#C4B5FD]">
-              <h3 className="text-sm font-bold tracking-widest text-[#6D28D9] uppercase">Data do evento</h3>
-              <p className="mt-3 text-2xl font-bold">{formatRange(event.startsAt, event.endsAt)}</p>
-              <p className="mt-2 text-sm font-semibold text-[#6D28D9]">Horário de Fortaleza.</p>
-            </article>
-          </div>
-          {mapQuery ? (
-            <div className="mt-6 overflow-hidden rounded-3xl bg-white shadow-[0_10px_0_#F5D0FE]">
-              <iframe
-                title={`Mapa de ${mapQuery}`}
-                src={`https://maps.google.com/maps?q=${encodeURIComponent(mapQuery)}&hl=pt-BR&z=16&output=embed`}
-                className="h-64 w-full border-0"
-                loading="lazy"
-                referrerPolicy="no-referrer-when-downgrade"
-              />
-              <p className="px-4 py-3">
-                <a
-                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapQuery)}`}
-                  className="font-bold text-[#6D28D9] underline underline-offset-4"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Abrir no Google Maps (abre em uma nova aba)
-                </a>
-              </p>
-            </div>
-          ) : null}
-        </div>
-      </section>
-
-      <section id="programacao" aria-labelledby="programacao-titulo" className="scroll-mt-28 bg-white px-4 py-16">
-        <div className="mx-auto grid max-w-6xl items-start gap-8 lg:grid-cols-[1fr_16rem]">
-          <div>
-            <h2 id="programacao-titulo" className="w-fit rounded-full bg-[#6D28D9] px-5 py-2 text-2xl text-white sm:text-3xl">
-              Programação
+      <section id="onde" aria-labelledby="onde-titulo" className="scroll-mt-28 bg-[#FFCD34] px-4 py-10 md:px-8 md:py-14">
+        <div className="mx-auto flex max-w-6xl flex-col items-center gap-4 md:max-w-7xl md:flex-row md:items-end md:gap-4">
+          <div className="flex w-full flex-col items-center gap-2 md:w-[47.7%] md:items-start md:gap-1">
+            <h2 id="onde-titulo" className="w-[88%] max-w-sm -rotate-3 md:w-[91%] md:max-w-none md:rotate-0">
+              <img src="/marca/onde-e-quando.svg" alt="Onde e quando vai acontecer?" className="h-auto w-full" />
             </h2>
-            <p className="mt-4 text-sm font-semibold text-[#6D28D9]">Escolha o dia. Horários de Fortaleza.</p>
-            <div className="mt-6">
-              <Schedule activities={activities} />
-            </div>
+            <img
+              src="/marca/calendario.svg"
+              alt="Dia 24/11 e dia 25/11, das 9h às 18h, com intervalo para almoço das 12h às 14h. Competição de robótica e muito mais."
+              className="h-auto w-full -mt-10 rotate-2 md:-mt-16 md:rotate-0"
+            />
           </div>
-          <img src="/marca/boneca.png" alt="" className="mx-auto hidden w-56 lg:block" />
+          <img
+            src="/marca/endereco.svg"
+            alt="IFMA Imperatriz. Avenida Newton Bello, S/N, Vila Maria, Imperatriz, MA, CEP 65906-335. Campus Imperatriz."
+            className="h-auto w-full -rotate-2 md:w-[52.3%] md:rotate-0"
+          />
         </div>
       </section>
 
@@ -333,33 +284,4 @@ function Marquee({ className }: { className: string }) {
       </div>
     </div>
   );
-}
-
-function withLocations(
-  activities: NonNullable<PublicEvent["activities"]>,
-  locations: NonNullable<PublicEvent["locations"]>,
-): PublicActivity[] {
-  const names = new Map(locations.map((item) => [item.id, item.name]));
-  return activities.map((item) => ({
-    id: item.id,
-    title: item.title,
-    description: item.description,
-    type: item.type,
-    startsAt: item.startsAt,
-    endsAt: item.endsAt,
-    locationName: item.locationId ? names.get(item.locationId) ?? null : null,
-    responsible: item.responsible,
-    grantsStamp: item.grantsStamp,
-    requiresEnrollment: item.requiresEnrollment,
-  }));
-}
-
-function formatRange(startsAt: string | null, endsAt: string | null): string {
-  if (!startsAt || !endsAt) return "Datas a definir";
-  const format = new Intl.DateTimeFormat("pt-BR", {
-    dateStyle: "long",
-    timeStyle: "short",
-    timeZone: eventTimeZone,
-  });
-  return `${format.format(new Date(startsAt))} até ${format.format(new Date(endsAt))}`;
 }
