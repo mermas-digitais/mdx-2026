@@ -172,6 +172,20 @@
   animation: mdx-marquee 36s linear infinite;
 }
 
+@keyframes mdx-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+.mdx-float {
+  animation: mdx-float 4s ease-in-out infinite;
+}
+
 @keyframes mdx-border-spin {
   to {
     transform: rotate(1turn);
@@ -193,6 +207,42 @@
   animation: mdx-border-spin 2.8s linear infinite;
 }
 
+@keyframes mdx-glow-shift {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 300% 50%;
+  }
+}
+
+.mdx-glow-btn {
+  position: relative;
+  z-index: 0;
+  isolation: isolate;
+  border: 2px solid transparent;
+  background-image:
+    linear-gradient(#330043, #330043),
+    linear-gradient(90deg, #ff4a97, #ffcd34, #7c3aed, #ff7a3c, #ff4a97);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+  background-size: auto, 300% 100%;
+  animation: mdx-glow-shift 3.5s linear infinite;
+}
+
+.mdx-glow-btn::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: -4px;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #ff4a97, #ffcd34, #7c3aed, #ff7a3c, #ff4a97);
+  background-size: 300% 100%;
+  filter: blur(8px);
+  opacity: 0.9;
+  animation: mdx-glow-shift 3.5s linear infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .mdx-marquee {
     width: auto;
@@ -203,5 +253,20 @@
 
   .mdx-gradient-ring::before {
     animation: none;
+  }
+
+  .mdx-float,
+  .mdx-glow-btn,
+  .mdx-glow-btn::before {
+    animation: none;
+  }
+
+  .mdx-glow-btn {
+    border-color: #ffcd34;
+    background: transparent;
+  }
+
+  .mdx-glow-btn::before {
+    opacity: 0;
   }
 }

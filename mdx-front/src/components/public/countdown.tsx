@@ -47,27 +47,29 @@ export function Countdown({
   ] as const;
 
   return (
-    <div>
+    <div className={tone === "glass" ? "w-full max-w-xl" : undefined}>
       <p className="sr-only">
         Contagem regressiva. Faltam {days} dias, {hours} horas, {minutes} minutos e {seconds} segundos.
       </p>
-      <div className="flex items-end gap-2" aria-hidden="true">
+      <div className={tone === "glass" ? "grid w-full grid-cols-4 gap-1.5 sm:gap-3" : "flex items-end gap-2"} aria-hidden="true">
         {units.map(([value, label]) => (
           <div
             key={label}
             className={
               tone === "glass"
-                ? "flex min-w-[4.5rem] flex-col items-center rounded-3xl border border-white/35 bg-white/10 px-3 py-4 backdrop-blur-sm"
+                ? "flex min-w-0 flex-col items-center rounded-2xl border border-white/40 bg-white/20 px-1 py-3 md:rounded-3xl md:px-3 md:py-5"
                 : "flex min-w-[4.5rem] flex-col items-center rounded-2xl bg-white px-3 py-3 shadow-[0_8px_0_#F5D0FE]"
             }
           >
             <span
-              className={`font-heading text-4xl leading-none font-bold tabular-nums ${tone === "glass" ? "text-white" : "text-[#6D28D9]"}`}
+              className={`font-heading leading-none font-bold tabular-nums ${
+                tone === "glass" ? "text-3xl text-white md:text-5xl lg:text-6xl" : "text-4xl text-[#6D28D9]"
+              }`}
             >
               {value}
             </span>
             <span
-              className={`mt-2 text-xs ${tone === "glass" ? "text-white/90" : "font-bold tracking-wide text-[#7C3AED] uppercase"}`}
+              className={`mt-2 text-[0.65rem] sm:text-xs ${tone === "glass" ? "text-white/90 md:text-sm" : "font-bold tracking-wide text-[#7C3AED] uppercase"}`}
             >
               {label}
             </span>

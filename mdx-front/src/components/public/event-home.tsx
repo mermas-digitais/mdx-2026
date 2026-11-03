@@ -34,6 +34,52 @@ const happenings = [
   { title: "Experiências STEAM", text: "Ciência, tecnologia, engenharia, artes e matemática.", icon: "/marca/desafio.png", background: "#EDE9FE" },
 ] as const;
 
+const notebookFrame = { width: 578, height: 647 };
+
+const notebookIcons = [
+  { src: "/marca/robo-sozinho.svg", delay: "0s", x: 0, y: 165, width: 73, height: 76 },
+  { src: "/marca/steam-sozinho.svg", delay: "0.5s", x: 78, y: 37, width: 159, height: 84 },
+  { src: "/marca/lampada-sozinho.svg", delay: "1s", x: 316, y: 0, width: 68, height: 70 },
+  { src: "/marca/codigo-sozinho.svg", delay: "1.5s", x: 428, y: 60, width: 89, height: 77 },
+  { src: "/marca/selo-sozinho.svg", delay: "2s", x: 442, y: 300, width: 136, height: 137 },
+  { src: "/marca/game-sozinho.svg", delay: "2.5s", x: 402, y: 469, width: 115, height: 71 },
+] as const;
+
+function frameBox(x: number, y: number, width: number, height: number) {
+  return {
+    left: `${(x / notebookFrame.width) * 100}%`,
+    top: `${(y / notebookFrame.height) * 100}%`,
+    width: `${(width / notebookFrame.width) * 100}%`,
+    height: `${(height / notebookFrame.height) * 100}%`,
+  };
+}
+
+function NotebookScene() {
+  return (
+    <div className="relative mx-auto aspect-[578/647] w-full max-w-md">
+      <img
+        src="/marca/menina-notebook-sozinha.svg"
+        alt=""
+        className="absolute"
+        style={frameBox(40, 42, 460, 605)}
+      />
+      {notebookIcons.map((icon) => (
+        <span
+          key={icon.src}
+          className="mdx-float absolute"
+          style={{ ...frameBox(icon.x, icon.y, icon.width, icon.height), animationDelay: icon.delay }}
+        >
+          <img
+            src={icon.src}
+            alt=""
+            className="h-full w-full object-contain transition-transform duration-300 hover:scale-[1.12]"
+          />
+        </span>
+      ))}
+    </div>
+  );
+}
+
 export function EventHome({ event }: { event: PublicEvent }) {
   const signupHref = `/e/${event.slug}/inscricao`;
   const locations = event.locations ?? [];
@@ -50,58 +96,69 @@ export function EventHome({ event }: { event: PublicEvent }) {
         </p>
       ) : null}
 
-      <h1>
-        <img src="/marca/banner-lp.jpg" alt={event.title} className="block w-full" />
-      </h1>
+      <section
+        aria-label={event.title}
+        className="relative h-[70svh] w-full overflow-hidden bg-cover bg-center md:h-[calc(100svh-4.5rem)]"
+        style={{ backgroundImage: "url(/marca/banner-lp-oficial.svg)" }}
+      >
+        <h1 className="absolute inset-0 m-0 flex items-center justify-center">
+          <img
+            src="/marca/menina-mdx-inscricao.svg"
+            alt={event.title}
+            className="mdx-float h-auto max-h-[92%] w-auto max-w-[96%] object-contain"
+          />
+        </h1>
+      </section>
       <Marquee className={paytone.className} />
 
       <section
         id="o-que-e"
         aria-labelledby="o-que-e-titulo"
-        className="scroll-mt-28 bg-white bg-cover bg-center px-4 py-14 sm:py-20"
+        className="scroll-mt-28 bg-white bg-[length:1437px_639px] bg-repeat px-4 py-14 sm:py-20"
         style={{ backgroundImage: "url(/marca/quadriculado.svg)" }}
       >
         <div className="mx-auto grid max-w-6xl items-center gap-10 md:grid-cols-[1.15fr_0.85fr]">
           <div>
             <h2 id="o-que-e-titulo">
-              <img src="/marca/o-que-e-mdx.svg" alt="O que é o MDX STEAM?" className="w-full max-w-lg" />
+              <img src="/marca/o-que-e-mdx.svg" alt="O que é o MDX STEAM?" className="w-4/5 max-w-lg sm:w-full" />
             </h2>
             <p className="mt-8 max-w-xl font-heading text-lg leading-snug font-bold text-[#330043] sm:text-xl">
               O MDX STEAM é um evento que une tecnologia, criatividade e muito aprendizado! Aqui, meninas
               exploram o mundo da ciência, da tecnologia, da engenharia, das artes e da matemática de forma
               prática, divertida e colaborativa.
             </p>
-            <p className="mt-6 inline-flex rounded-full border-2 border-[#6D28D9] px-4 py-2 text-sm font-bold text-[#330043] sm:text-base">
+            <p className="mt-6 inline-flex rounded-full border-2 border-[#6D28D9] px-4 py-2 text-sm font-bold text-[#6D28D9] sm:text-base">
               Desenvolvido desde 2025 pelo Mermãs Digitais
             </p>
           </div>
-          <img src="/marca/menina-notebook.svg" alt="" className="mx-auto w-full max-w-md" />
+          <NotebookScene />
         </div>
       </section>
 
       <section
         aria-label="Inscrição"
-        className="bg-[#330043] bg-cover bg-center px-4 py-12 text-white sm:py-16"
-        style={{ backgroundImage: "url(/marca/estrelado.svg)" }}
+        className="relative overflow-hidden bg-[#330043] px-4 py-12 text-white sm:py-16"
       >
-        <div className="mx-auto grid max-w-6xl items-center gap-10 md:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
-          <div>
-            <p className={`${erica.className} text-[clamp(1.45rem,6.2vw,2.15rem)] leading-[0.95] tracking-wide md:text-[2.35rem] lg:text-[3.4rem] xl:text-[4rem]`}>
-              MERMÃ,
-              <br />
-              VEM SE INSCREVER!
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 bg-cover bg-center opacity-55"
+          style={{ backgroundImage: "url(/marca/estrelado.svg)" }}
+        />
+        <div className="relative mx-auto flex max-w-6xl flex-col items-center gap-8 md:flex-row md:items-center md:justify-between md:gap-16">
+          <div className="mx-auto flex w-fit max-w-full flex-col items-center md:mx-0">
+            <p className={`${erica.className} -rotate-2 text-center leading-[0.95] tracking-wide text-[clamp(1.85rem,7.4vw,2.35rem)] md:text-[clamp(1.65rem,2.3vw,2.45rem)]`}>
+              <span className="block whitespace-nowrap">MERMÃ,</span>
+              <span className="block whitespace-nowrap">VEM SE INSCREVER!</span>
             </p>
             <Link
               href={signupHref}
-              className="mdx-gradient-ring mt-8 inline-flex rounded-full p-[5px] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white"
+              className="mdx-glow-btn mt-8 inline-flex h-14 items-center rounded-full px-8 font-heading text-xl font-bold text-[#ffffff] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white"
             >
-              <span className="inline-flex h-14 items-center rounded-full bg-gradient-to-r from-[#FF4A97] to-[#FF7A3C] px-8 font-heading text-xl font-bold text-white">
-                quero participar
-              </span>
+              quero participar
             </Link>
           </div>
-          <div className="flex flex-col items-center gap-5">
-            <p className="rounded-full border border-white px-5 py-2 text-center font-heading text-sm font-bold sm:text-base">
+          <div className="flex w-full min-w-0 flex-col items-center gap-5 md:w-[28rem] md:shrink-0">
+            <p className="rounded-full border border-white px-5 py-2 text-center font-heading text-sm font-bold md:text-xl">
               As inscrições se encerram em:
             </p>
             <Countdown startsAt={event.startsAt} endsAt={event.endsAt} tone="glass" />
@@ -118,14 +175,8 @@ export function EventHome({ event }: { event: PublicEvent }) {
           alt="O MDX é aberto ao público. Só a competição tem regras específicas. Gamificações, sorteios, stands e atividades interativas são para todo mundo. Competir no desafio de robótica é só para meninas matriculadas no ensino fundamental ou médio, em escola pública ou particular."
           className="hidden w-full md:block"
         />
-        <div className="md:hidden">
-          <div className="relative overflow-hidden">
-            <img src="/marca/quem-lado.jpg" alt="" className="block w-full" />
-            <div className="pointer-events-none absolute inset-y-0 right-0 w-[5.5%] bg-[#FF4A97]" aria-hidden="true" />
-          </div>
-          <div className="px-3 pb-8">
-            <ParticipationCard />
-          </div>
+        <div className="px-3 py-8 md:hidden">
+          <ParticipationCard />
         </div>
       </section>
 
@@ -323,13 +374,20 @@ function ActivityIcon({ name }: { name: (typeof participation)[number]["icon"] }
 }
 
 function Marquee({ className }: { className: string }) {
-  const line = "VEM SE INSCREVER! ".repeat(8);
+  const phrases = Array.from({ length: 8 }, () => "VEM SE INSCREVER!");
   return (
-    <div className="overflow-hidden bg-[#330043] py-4 text-white">
+    <div className="overflow-hidden bg-[#330043] py-1 text-white sm:py-2.5">
       <p className="sr-only">Vem se inscrever!</p>
-      <div className={`${className} mdx-marquee text-3xl tracking-wide whitespace-nowrap sm:text-4xl`} aria-hidden="true">
-        <span className="px-3">{line}</span>
-        <span className="px-3">{line}</span>
+      <div className={`${className} mdx-marquee text-xs whitespace-nowrap sm:text-xl md:text-2xl`} aria-hidden="true">
+        {[0, 1].map((copy) => (
+          <span key={copy} className="flex">
+            {phrases.map((phrase, index) => (
+              <span key={index} className="px-2 sm:px-4 md:px-8">
+                {phrase}
+              </span>
+            ))}
+          </span>
+        ))}
       </div>
     </div>
   );
