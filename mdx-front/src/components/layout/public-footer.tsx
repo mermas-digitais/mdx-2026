@@ -15,9 +15,6 @@ export function PublicFooter() {
           height={38}
           className="h-10 w-auto"
         />
-        <p className="max-w-sm text-sm leading-6 text-brand-purple">
-          Tecnologia com escuta, clareza e espaço para quem constrói junto.
-        </p>
       </div>
     </footer>
   );
