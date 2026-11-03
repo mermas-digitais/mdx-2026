@@ -17,14 +17,6 @@ const erica = Erica_One({
   display: "swap",
 });
 
-const participation = [
-  { name: "Gamificações", icon: "game", general: true, girls: true },
-  { name: "Sorteios", icon: "gift", general: true, girls: true },
-  { name: "Conhecer os stands", icon: "stand", general: true, girls: true },
-  { name: "Participar das atividades interativas", icon: "idea", general: true, girls: true },
-  { name: "Competir no desafio de robótica", icon: "bot", general: false, girls: true },
-] as const;
-
 const happenings = [
   { title: "Robótica", text: "Monte, programe e veja suas ideias ganharem vida.", icon: "/marca/robo.png", background: "#EDE9FE" },
   { title: "Programação", text: "Lógica, código e criação na prática.", icon: "/marca/selo-steam.png", background: "#FCE7F3" },
@@ -166,17 +158,32 @@ export function EventHome({ event }: { event: PublicEvent }) {
         </div>
       </section>
 
-      <section id="quem" aria-labelledby="quem-titulo" className="scroll-mt-28 bg-[#FF4A97]">
-        <h2 id="quem-titulo" className="sr-only">
-          Quem pode participar?
-        </h2>
-        <img
-          src="/marca/quem-pode-participar.jpg"
-          alt="O MDX é aberto ao público. Só a competição tem regras específicas. Gamificações, sorteios, stands e atividades interativas são para todo mundo. Competir no desafio de robótica é só para meninas matriculadas no ensino fundamental ou médio, em escola pública ou particular."
-          className="hidden w-full md:block"
-        />
-        <div className="px-3 py-8 md:hidden">
-          <ParticipationCard />
+      <section id="quem" aria-labelledby="quem-titulo" className="scroll-mt-28 bg-[#FF4A97] pb-8 md:pb-0">
+        <div className="relative">
+          <img
+            src="/marca/carro-e-tabela.svg"
+            alt="Gamificações, sorteios, conhecer os stands e participar das atividades interativas valem para o público geral e para a competição de robótica. Competir no desafio de robótica vale só para a competição."
+            className="block w-full"
+          />
+          <h2 id="quem-titulo" className="absolute top-[3%] left-[3%] w-[42%] md:top-[4%] md:w-[30%]">
+            <img src="/marca/quem-pode-participar.svg" alt="Quem pode participar?" className="h-auto w-full" />
+          </h2>
+          <div className="absolute top-[8%] right-[4%] hidden h-[10.5%] w-[52%] items-center gap-4 rounded-3xl bg-white px-5 text-[#330043] shadow-[0_8px_0_#BE185D] md:flex">
+            <span className="block h-24 w-32 shrink-0 overflow-hidden" aria-hidden="true">
+              <img src="/marca/logo-mermas.svg" alt="" className="h-24 w-auto max-w-none" />
+            </span>
+            <p className="text-lg leading-snug font-bold xl:text-xl">
+              Atenção: para competir é preciso ser menina e estar matriculada em alguma escola, o professor orientador da equipe não precisa ser mulher.
+            </p>
+          </div>
+        </div>
+        <div className="mx-4 mt-6 flex items-center gap-3 rounded-2xl bg-white px-3 py-3 text-[#330043] shadow-[0_6px_0_#BE185D] md:hidden">
+          <span className="block h-12 w-16 shrink-0 overflow-hidden" aria-hidden="true">
+            <img src="/marca/logo-mermas.svg" alt="" className="h-12 w-auto max-w-none" />
+          </span>
+          <p className="text-sm leading-snug font-bold">
+            Atenção: para competir é preciso ser menina e estar matriculada em alguma escola, o professor orientador da equipe não precisa ser mulher.
+          </p>
         </div>
       </section>
 
@@ -284,92 +291,6 @@ export function EventHome({ event }: { event: PublicEvent }) {
         </section>
       ) : null}
     </main>
-  );
-}
-
-function ParticipationCard() {
-  return (
-    <div className="-mt-6 rounded-[1.75rem] bg-white p-3 text-[#3B0764] shadow-[0_10px_0_#BE185D]">
-      <table className="w-full table-fixed border-separate border-spacing-y-1.5">
-        <caption className="sr-only">
-          Atividades abertas ao público geral e à competição de robótica.
-        </caption>
-        <colgroup>
-          <col className="w-[42%]" />
-          <col className="w-[26%]" />
-          <col className="w-[32%]" />
-        </colgroup>
-        <thead>
-          <tr>
-            <th className="p-0.5 text-center">
-              <span className="flex min-h-11 items-center justify-center rounded-2xl bg-[#FF4A97] px-1 py-2 font-heading text-[0.68rem] leading-tight font-bold text-white">
-                ✦ ATIVIDADE ✦
-              </span>
-            </th>
-            <th className="p-0.5 text-center">
-              <span className="flex min-h-11 items-center justify-center rounded-2xl bg-[#7C3AED] px-1 py-2 font-heading text-[0.62rem] leading-tight font-bold text-white">
-                PÚBLICO GERAL
-              </span>
-            </th>
-            <th className="p-0.5 text-center">
-              <span className="flex min-h-11 items-center justify-center rounded-2xl bg-[#5B21B6] px-1 py-2 font-heading text-[0.62rem] leading-tight font-bold text-white">
-                COMPETIÇÃO DE ROBÓTICA
-              </span>
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {participation.map((row, index) => (
-            <tr key={row.name} className={index % 2 === 0 ? "bg-[#FDF2F8]" : "bg-[#FAF5FF]"}>
-              <th scope="row" className="rounded-l-2xl px-2 py-2 text-left">
-                <span className="flex items-center gap-2 font-heading text-[0.8rem] leading-tight font-bold">
-                  <ActivityIcon name={row.icon} />
-                  {row.name}
-                </span>
-              </th>
-              <td className="px-1 py-2 text-center">
-                <Mark ok={row.general} />
-              </td>
-              <td className="rounded-r-2xl px-1 py-2 text-center">
-                <Mark ok={row.girls} />
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      <div className="mt-3 rounded-2xl bg-[#FFE14A] px-3 py-3 text-sm leading-snug">
-        <strong>Para competir:</strong> ser menina e estar matriculada no Ensino Fundamental ou Médio, em escola pública
-        ou particular, de qualquer cidade.
-      </div>
-      <p className="mt-3 text-center text-xs leading-snug font-bold">
-        ✦ Todas as pessoas podem visitar o evento e participar das atividades abertas! ✦
-      </p>
-    </div>
-  );
-}
-
-function Mark({ ok }: { ok: boolean }) {
-  return (
-    <span className={`text-xl font-bold ${ok ? "text-[#FF4A97]" : "text-[#7C3AED]"}`} aria-label={ok ? "sim" : "não"}>
-      {ok ? "✓" : "✕"}
-    </span>
-  );
-}
-
-function ActivityIcon({ name }: { name: (typeof participation)[number]["icon"] }) {
-  const paths = {
-    game: "M8 14h8v2a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2v-2Zm-2-1.5A1.5 1.5 0 0 1 7.5 11H9V8.5A1.5 1.5 0 0 1 10.5 7h3A1.5 1.5 0 0 1 15 8.5V11h1.5a1.5 1.5 0 0 1 1.5 1.5V14H6v-1.5ZM9 12h1.2M13.5 12H15",
-    gift: "M5 10h14v9H5v-9Zm1-3h12v3H6V7Zm6-3c-1.4 1.2-2.2 2.2-2.2 3H12V4Zm0 0c1.4 1.2 2.2 2.2 2.2 3H12V4ZM12 7v12",
-    stand: "M6 10h12v8H6v-8Zm1.5-3h9l1 3h-11l1-3Zm2.5 4.5h4",
-    idea: "M12 6a4 4 0 0 0-2 7.5V15h4v-1.5A4 4 0 0 0 12 6Zm-1.2 11h2.4M10.5 18.5h3",
-    bot: "M12 7V5M10 5h4M8 9h8a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2Zm2 3.2h.01M14 12.2h.01M9.5 15h5",
-  } as const;
-  return (
-    <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[#FBCFE8] text-[#7C3AED]">
-      <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-        <path d={paths[name]} strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    </span>
   );
 }
 
