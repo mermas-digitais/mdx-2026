@@ -243,6 +243,49 @@
   animation: mdx-glow-shift 3.5s linear infinite;
 }
 
+@keyframes mdx-inscrever-ring {
+  0% {
+    box-shadow: 0 0 0 0 rgb(255 205 52 / 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 16px rgb(255 205 52 / 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgb(255 205 52 / 0);
+  }
+}
+
+@keyframes mdx-inscrever-shine {
+  0%,
+  58% {
+    transform: translateX(-160%) skewX(-18deg);
+  }
+  100% {
+    transform: translateX(340%) skewX(-18deg);
+  }
+}
+
+.mdx-inscrever {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  background: #ffcd34;
+  color: #330043;
+  animation: mdx-inscrever-ring 2.2s ease-out infinite;
+}
+
+.mdx-inscrever::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 38%;
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.75), transparent);
+  animation: mdx-inscrever-shine 2.6s ease-in-out infinite;
+  pointer-events: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .mdx-marquee {
     width: auto;
@@ -257,7 +300,9 @@
 
   .mdx-float,
   .mdx-glow-btn,
-  .mdx-glow-btn::before {
+  .mdx-glow-btn::before,
+  .mdx-inscrever,
+  .mdx-inscrever::after {
     animation: none;
   }
 

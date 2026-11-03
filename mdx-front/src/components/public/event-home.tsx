@@ -207,6 +207,24 @@ export function EventHome({ event }: { event: PublicEvent }) {
         </ul>
       </section>
 
+      <section aria-label="Quero me inscrever" className="relative overflow-hidden bg-[#330043]">
+        <div className="relative h-60 overflow-hidden md:h-auto">
+          <img
+            src="/marca/raios.svg"
+            alt=""
+            className="absolute top-1/2 left-1/2 w-[210%] max-w-none -translate-x-1/2 -translate-y-1/2 md:static md:w-full md:translate-none"
+          />
+        </div>
+        <div className="absolute inset-0 flex items-center justify-center px-4">
+          <Link
+            href={signupHref}
+            className={`${paytone.className} mdx-inscrever inline-flex items-center rounded-full px-8 py-3 text-lg tracking-wide transition-transform duration-300 hover:scale-105 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white md:px-12 md:py-4 md:text-2xl`}
+          >
+            QUERO ME INSCREVER
+          </Link>
+        </div>
+      </section>
+
       <section id="onde" aria-labelledby="onde-titulo" className="scroll-mt-28 px-4 py-16">
         <div className="mx-auto max-w-6xl">
           <h2 id="onde-titulo" className="mx-auto w-fit rounded-full bg-[#6D28D9] px-5 py-2 text-center text-2xl text-white sm:text-3xl">
