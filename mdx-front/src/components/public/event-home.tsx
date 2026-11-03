@@ -17,13 +17,12 @@ const erica = Erica_One({
   display: "swap",
 });
 
-const happenings = [
-  { title: "Robótica", text: "Monte, programe e veja suas ideias ganharem vida.", icon: "/marca/robo.png", background: "#EDE9FE" },
-  { title: "Programação", text: "Lógica, código e criação na prática.", icon: "/marca/selo-steam.png", background: "#FCE7F3" },
-  { title: "Jogos", text: "Diversão e tecnologia andam juntas.", icon: "/marca/controle.png", background: "#FEF3C7" },
-  { title: "Projetos", text: "Invenções e soluções para um futuro melhor.", icon: "/marca/estrela.png", background: "#DCFCE7" },
-  { title: "Palestras", text: "Inspiração com pessoas incríveis da área.", icon: "/marca/trofeu.png", background: "#FCE7F3" },
-  { title: "Experiências STEAM", text: "Ciência, tecnologia, engenharia, artes e matemática.", icon: "/marca/desafio.png", background: "#EDE9FE" },
+const eventCards = [
+  { src: "/marca/competicoes.svg", alt: "Competições", delay: "0s" },
+  { src: "/marca/ia.svg", alt: "IA", delay: "0.5s" },
+  { src: "/marca/robotica.svg", alt: "Robótica", delay: "1s" },
+  { src: "/marca/ciencia.svg", alt: "Ciência", delay: "1.5s" },
+  { src: "/marca/jogos.svg", alt: "Jogos", delay: "2s" },
 ] as const;
 
 const notebookFrame = { width: 578, height: 647 };
@@ -187,21 +186,25 @@ export function EventHome({ event }: { event: PublicEvent }) {
         </div>
       </section>
 
-      <section id="dentro" aria-labelledby="dentro-titulo" className="scroll-mt-28 bg-white px-4 py-16">
-        <div className="mx-auto max-w-6xl">
-          <h2 id="dentro-titulo" className="mx-auto w-fit rounded-full bg-[#6D28D9] px-5 py-2 text-center text-2xl text-white sm:text-3xl">
-            O que vai rolar?
-          </h2>
-          <ul className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {happenings.map((item) => (
-              <li key={item.title} className="rounded-3xl p-5 text-center" style={{ background: item.background }}>
-                <img src={item.icon} alt="" className="mx-auto h-14 w-14 object-contain" />
-                <h3 className="mt-3 text-xl">{item.title}</h3>
-                <p className="mt-2 text-sm leading-relaxed">{item.text}</p>
-              </li>
-            ))}
-          </ul>
-        </div>
+      <section
+        id="dentro"
+        aria-labelledby="dentro-titulo"
+        className="scroll-mt-28 bg-[#9B6DFF] bg-[url('/marca/ondas.svg')] bg-[length:1440px_597px] bg-repeat px-4 py-10 md:px-10 md:py-14"
+      >
+        <h2 id="dentro-titulo" className="w-4/5 max-w-xs md:w-80">
+          <img src="/marca/o-que-vai-acontecer.svg" alt="O que vai acontecer?" className="h-auto w-full" />
+        </h2>
+        <ul className="mx-auto mt-10 flex w-full max-w-6xl flex-col items-center gap-16 md:mt-10 md:flex-row md:items-end md:justify-between md:gap-16">
+          {eventCards.map((card) => (
+            <li key={card.src} className="mdx-float w-[min(16rem,70%)] md:w-auto md:min-w-0 md:flex-1" style={{ animationDelay: card.delay }}>
+              <img
+                src={card.src}
+                alt={card.alt}
+                className="mx-auto h-auto w-full transition-transform duration-300 hover:scale-[1.12]"
+              />
+            </li>
+          ))}
+        </ul>
       </section>
 
       <section id="onde" aria-labelledby="onde-titulo" className="scroll-mt-28 px-4 py-16">
