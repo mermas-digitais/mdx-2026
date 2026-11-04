@@ -2,6 +2,32 @@
 
 Três recursos independentes no mesmo projeto/ambiente: PostgreSQL 17, API NestJS e frontend Next.js. O Garage existente é compartilhado pela infraestrutura; não criar outro storage nem publicar o banco.
 
+## Recursos provisionados
+
+Projeto **mdx26** (`wpsck9cvojkq6sdac83cv8sq`), ambiente **production** (`nuk8lk3e3lkjcazgnconccqj`), no servidor FabITZ Main Server e destino/rede `coolify`.
+
+| Recurso | UUID | Domínio / acesso |
+| --- | --- | --- |
+| `mdx26-postgres` | `2ussworg4ymwairwligwqozn` | PostgreSQL 17, somente rede interna |
+| `mdx26-backend` | `fxz53g1b93eq4thzfvgc7x0x` | `https://api.mdx26.fabitz.com.br` |
+| `mdx26-frontend` | `upkcm0xrnkyzwtejuywoowux` | `https://mdx26.fabitz.com.br` |
+
+Recursos criados **sem iniciar/deploy**. Aplicações apontam para `main`, com autodeploy e previews desabilitados. O PR inicial da migração S3 já foi integrado à `main`; o primeiro deploy continua sendo uma ação manual separada. DNS dos dois domínios foi consultado e resolve; isso não valida TLS nem disponibilidade das aplicações.
+
+### Variáveis locais e de produção
+
+O `.env` da raiz é um inventário local privado, não um arquivo para copiar integralmente para os dois recursos:
+
+- Mantidos os valores de desenvolvimento fornecidos: `NODE_ENV`, `PORT`, `DATABASE_URL`, `FRONTEND_URL`, `JWT_SECRET` e SMTP. A configuração local continua com frontend em `localhost:3002`.
+- Incluídos `AUTH_SECRET` aleatório, `AUTH_URL`, `API_URL`, `NEXT_PUBLIC_API_URL` e as cinco variáveis `S3_*` necessárias.
+- Incluídas referências privadas `COOLIFY_DATABASE_URL`, `COOLIFY_FRONTEND_URL` e `COOLIFY_API_URL`. A URL do PostgreSQL de produção tem senha gerada pelo Coolify e hostname interno, não `localhost`.
+- O backend recebeu 15 variáveis: JWT, SMTP, S3 e configuração de produção (`NODE_ENV=production`, `PORT=3001`, URL interna do banco e origem HTTPS do frontend).
+- O frontend recebeu sete variáveis: `NODE_ENV=production`, `PORT=3000`, `HOSTNAME`, `API_URL`, `NEXT_PUBLIC_API_URL`, `AUTH_URL` e `AUTH_SECRET`. Nesta configuração, ambas as URLs da API usam o endpoint HTTPS público; não dependem de alias privado da aplicação.
+- Apenas `NEXT_PUBLIC_API_URL` do frontend está disponível no build. Demais variáveis são runtime-only; injeção automática de argumentos nos Dockerfiles foi desabilitada. Escopos conferidos também nas cópias de preview, embora previews estejam desabilitados.
+- Valores com caracteres especiais foram enviados como literais. Não colocar `.env`, senhas ou tokens em commits/PRs; `.env.example` permanece versionável. As aplicações não carregam o `.env` da raiz automaticamente quando iniciadas em seus subdiretórios.
+
+Conferidas presença de 22 variáveis locais, distinção/tamanho dos segredos de autenticação, senha do banco de produção e persistência das variáveis no Coolify, sem imprimir valores. Entrega SMTP, TLS e conectividade de containers ainda dependem da validação de deploy. Credenciais expostas em conversa devem ser rotacionadas em manutenção coordenada.
+
 ## Storage preparado
 
 - Serviço Garage: `mckbsobkbr5j60bbycjr8bnc`.
@@ -27,7 +53,7 @@ Criar Application a partir deste repositório:
 
 | Campo | Valor |
 | --- | --- |
-| Branch | `deploy-on-coolify-fabitz` (ou a branch de release aprovada) |
+| Branch | `main` |
 | Build Pack | Dockerfile |
 | Base Directory | `/mdx-back` |
 | Dockerfile Location | `/Dockerfile` |
@@ -139,7 +165,7 @@ Backend: `npm ci`, `npm test`, `npm run build`. `npm run storage:check` usa as v
 
 Frontend: `npm ci`, `npm test`, `npm run lint`, `npm run build`. Usar Node 22.22.3+ na linha 22, ou 24.15+ na linha 24 (dependências do Nest CLI exigem essas versões). Dockerfiles usam Node 22 e npm 11.
 
-`render.yaml` permanece como legado e não participa do deploy no Coolify. Não ativar autodeploy das aplicações antes de revisar domínios/variáveis e publicar a branch no remoto.
+`render.yaml` permanece como legado e não participa do deploy no Coolify. Não ativar autodeploy das aplicações antes de revisar domínios/variáveis e aprovar o primeiro deploy manual.
 
 ### Validação desta preparação
 
@@ -147,4 +173,4 @@ Frontend: `npm ci`, `npm test`, `npm run lint`, `npm run build`. Usar Node 22.22
 - Frontend: build standalone, três testes de sessão HTTP/HTTPS e health do processo standalone passaram. Lint sem erros, com avisos preexistentes de `<img>`.
 - Garage real: upload/leitura autenticada/bloqueio anônimo/exclusão passaram; objeto temporário removido. Bucket permaneceu privado e vazio.
 - Auditoria `npm audit --omit=dev`: backend sem vulnerabilidades reportadas; frontend com seis alertas baixos/moderados na árvore do CLI `shadcn`, mantidos fora desta mudança. Não aplicado `audit fix --force`.
-- Ainda pendentes: build das imagens Linux (Docker local indisponível), E2E com Postgres, envio SMTP real, migração dos dados existentes e teste completo após deploy no Coolify. Não houve deploy das aplicações nem push da branch.
+- Ainda pendentes: build das imagens Linux (Docker local indisponível), E2E com Postgres, envio SMTP real, migração dos dados existentes e teste completo após deploy no Coolify. Não houve deploy das aplicações. O PR inicial foi integrado à `main`; as alterações posteriores de provisionamento são registradas em outro PR.
