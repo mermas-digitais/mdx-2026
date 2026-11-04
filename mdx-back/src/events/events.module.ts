@@ -9,10 +9,11 @@ import { EventsRepository } from './events.repository.js';
 import { EventsService } from './events.service.js';
 import { RoboticsRepository } from './robotics.repository.js';
 import { RoboticsService } from './robotics.service.js';
+import { StorageService } from '../storage/storage.service.js';
 
 @Module({
   imports: [AuthModule],
   controllers: [AdminEventsController, PublicEventsController, UploadsController],
-  providers: [EventsService, EventsRepository, RoboticsService, RoboticsRepository],
+  providers: [EventsService, EventsRepository, RoboticsService, RoboticsRepository, StorageService],
 })
 export class EventsModule {}

@@ -1,12 +1,12 @@
 import { randomUUID } from 'node:crypto';
-import { mkdir, rm, writeFile } from 'node:fs/promises';
+import type { Readable } from 'node:stream';
 import path from 'node:path';
 import {
   BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
-  OnModuleInit,
+  Logger,
 } from '@nestjs/common';
 import { cpfDigits, cpfError, formIssues } from '../server/form-schema.js';
 import { roboticsTeamSchema } from '../server/robotics-schema.js';
@@ -17,8 +17,8 @@ import {
   RoboticsRepository,
   type RoboticsTeamView,
 } from './robotics.repository.js';
+import { StorageService } from '../storage/storage.service.js';
 
-const documentsDir = path.join(process.cwd(), 'uploads', 'documents');
 const DOCUMENT_MAX = 5 * 1024 * 1024;
 
 export type IncomingFile = {
@@ -29,21 +29,19 @@ export type IncomingFile = {
 };
 
 export type StoredDocument = {
-  path: string;
+  stream: Readable;
   type: string;
   filename: string;
 };
 
 @Injectable()
-export class RoboticsService implements OnModuleInit {
+export class RoboticsService {
+  private readonly logger = new Logger(RoboticsService.name);
   constructor(
     private readonly events: EventsRepository,
     private readonly robotics: RoboticsRepository,
+    private readonly storage: StorageService,
   ) {}
-
-  async onModuleInit() {
-    await mkdir(documentsDir, { recursive: true });
-  }
 
   async createTeam(
     slug: string,
@@ -96,15 +94,17 @@ export class RoboticsService implements OnModuleInit {
 
     const written: string[] = [];
     try {
-      const advisorDocument = await storeDocument(advisorFile!.buffer, written);
-      const members = await Promise.all(
-        data.members.map(async (member, index) => ({
+      const advisorDocument = await this.storeDocument(advisorFile!.buffer, written);
+      const members = [];
+      // Aguarda cada envio para que o rollback não concorra com uploads ainda ativos.
+      for (const [index, member] of data.members.entries()) {
+        members.push({
           fullName: member.fullName,
           cpf: memberCpfs[index],
           birthDate: member.birthDate,
-          document: await storeDocument(memberFiles[index]!.buffer, written),
-        })),
-      );
+          document: await this.storeDocument(memberFiles[index]!.buffer, written),
+        });
+      }
       return await this.robotics.createTeam({
         eventId: event.id,
         advisorUserId: user.id,
@@ -118,7 +118,8 @@ export class RoboticsService implements OnModuleInit {
         modalityIds: data.modalityIds,
       });
     } catch (error) {
-      await Promise.all(written.map((file) => rm(path.join(documentsDir, file), { force: true })));
+      const cleanup = await Promise.allSettled(written.map((key) => this.storage.delete(key)));
+      if (cleanup.some((result) => result.status === 'rejected')) this.logger.warn('Falha ao limpar documentos órfãos.');
       if (error instanceof RoboticsRejected) {
         throw new BadRequestException({
           statusCode: 400,
@@ -156,14 +157,24 @@ export class RoboticsService implements OnModuleInit {
     if (found.advisorUserId !== user.id && !canManageEvent(user, event.id)) {
       throw new NotFoundException('Documento não encontrado.');
     }
-    const full = storedPath(found.stored);
-    if (!full) throw new NotFoundException('Documento não encontrado.');
-    const extension = path.extname(full).slice(1).toLowerCase();
+    const key = documentKey(found.stored);
+    if (!key) throw new NotFoundException('Documento não encontrado.');
+    const extension = path.extname(key).slice(1).toLowerCase();
     return {
-      path: full,
+      stream: await this.storage.get(key),
       type: extension === 'pdf' ? 'application/pdf' : extension === 'png' ? 'image/png' : extension === 'webp' ? 'image/webp' : 'image/jpeg',
       filename: `vinculo.${extension}`,
     };
+  }
+
+  private async storeDocument(buffer: Buffer, written: string[]): Promise<string> {
+    const kind = documentKind(buffer);
+    if (!kind) throw new BadRequestException('Envie o documento em PDF ou imagem, até 5 MB.');
+    const key = `documents/${randomUUID()}.${kind}`;
+    const type = kind === 'pdf' ? 'application/pdf' : kind === 'jpg' ? 'image/jpeg' : `image/${kind}`;
+    await this.storage.put(key, buffer, type);
+    written.push(key);
+    return key;
   }
 
   private async advisorCpf(userId: string, informed: string | undefined): Promise<string> {
@@ -233,19 +244,7 @@ function documentKind(buffer: Buffer): 'pdf' | 'jpg' | 'png' | 'webp' | null {
   return null;
 }
 
-async function storeDocument(buffer: Buffer, written: string[]): Promise<string> {
-  const kind = documentKind(buffer);
-  if (!kind) throw new BadRequestException('Envie o documento em PDF ou imagem, até 5 MB.');
-  const filename = `${randomUUID()}.${kind}`;
-  await mkdir(documentsDir, { recursive: true });
-  await writeFile(path.join(documentsDir, filename), buffer);
-  written.push(filename);
-  return `documents/${filename}`;
-}
-
-export function storedPath(stored: string): string | null {
+export function documentKey(stored: string): string | null {
   if (!/^documents\/[0-9a-f-]{36}\.(pdf|jpg|png|webp)$/i.test(stored)) return null;
-  const full = path.resolve(documentsDir, path.basename(stored));
-  if (!full.startsWith(`${documentsDir}${path.sep}`)) return null;
-  return full;
+  return stored;
 }
