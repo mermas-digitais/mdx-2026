@@ -149,6 +149,14 @@ Sem essa cópia, registros antigos continuam existindo, mas seus arquivos darão
 
 ## Primeiro acesso e verificação
 
+### Carga inicial executada
+
+Em 04/11/2026, o usuário autorizou explicitamente o **seed completo de demonstração no PostgreSQL do Coolify**, após aviso de exclusão/recriação do evento e contas com senha conhecida. A consulta prévia confirmou zero usuários e zero eventos. Executado uma única vez usando a `DATABASE_URL` do backend, sem expor o banco publicamente e sem usar o Neon citado na conversa.
+
+Resultado: **1 evento, 11 usuários, 5 stands, 2 provas e 10 inscrições**. A API pública confirmou `mdx-2026` como `PUBLISHED`, sete atividades, três modalidades e inscrições abertas; `/e/mdx-2026` respondeu HTTP 200. As três tarefas manuais criadas para preparação/execução foram removidas, assim como os arquivos/dependências temporários. Nenhuma rotina periódica de seed ficou ativa.
+
+**Atenção:** as contas de demonstração, incluindo `admin@mdx.local`, usam a senha conhecida descrita no README. Remover essas contas ou trocar suas senhas e configurar administrador real antes de liberar uso real. Não executar esse seed novamente com inscrições reais: ele apaga/recria o evento e registros relacionados. A execução inicial foi uma exceção expressamente autorizada, não parte do deploy automático.
+
 Subir banco → API → frontend. Criar uma conta pelo fluxo normal com e-mail real; depois, no console SQL privado do banco, promover **a conta aprovada**:
 
 ```sql
