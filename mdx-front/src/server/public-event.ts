@@ -1,5 +1,5 @@
 import { cache } from "react";
-import { getToken } from "next-auth/jwt";
+import { readSessionToken } from "@/lib/session-token";
 import { cookies } from "next/headers";
 import { getApiUrl, getPublicEvent, type PublicEvent } from "@/lib/api";
 
@@ -12,7 +12,7 @@ export const loadEventPage = cache(async (slug: string): Promise<PublicEvent | n
   if (!token) return null;
   try {
     const response = await fetch(
-      `${getApiUrl()}/api/events/${encodeURIComponent(slug)}/preview`,
+      `${process.env.API_URL ?? getApiUrl()}/api/events/${encodeURIComponent(slug)}/preview`,
       {
         headers: { Authorization: `Bearer ${token}` },
         cache: "no-store",
@@ -28,9 +28,6 @@ export const loadEventPage = cache(async (slug: string): Promise<PublicEvent | n
 
 async function apiToken(): Promise<string | null> {
   const cookie = (await cookies()).toString();
-  const token = await getToken({
-    req: { headers: { cookie } },
-    secret: process.env.AUTH_SECRET,
-  });
+  const token = await readSessionToken(cookie);
   return typeof token?.apiToken === "string" ? token.apiToken : null;
 }

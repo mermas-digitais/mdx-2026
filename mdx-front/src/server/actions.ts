@@ -1,6 +1,6 @@
 "use server";
 
-import { getToken } from "next-auth/jwt";
+import { readSessionToken } from "@/lib/session-token";
 import { cookies } from "next/headers";
 import { auth } from "@/auth";
 import {
@@ -21,10 +21,7 @@ async function currentUser(): Promise<AuthUser | null> {
 
 async function apiToken() {
   const cookie = (await cookies()).toString();
-  const token = await getToken({
-    req: { headers: { cookie } },
-    secret: process.env.AUTH_SECRET,
-  });
+  const token = await readSessionToken(cookie);
   return token?.apiToken ?? null;
 }
 

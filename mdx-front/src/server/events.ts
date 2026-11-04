@@ -1,6 +1,6 @@
 "use server";
 
-import { getToken } from "next-auth/jwt";
+import { readSessionToken } from "@/lib/session-token";
 import { cookies } from "next/headers";
 import { auth } from "@/auth";
 import { bannerError } from "@/server/event-schema";
@@ -95,10 +95,7 @@ async function currentUser(): Promise<AuthUser | null> {
 
 async function authorizedFetch(path: string, init: RequestInit = {}) {
   const cookie = (await cookies()).toString();
-  const token = await getToken({
-    req: { headers: { cookie } },
-    secret: process.env.AUTH_SECRET,
-  });
+  const token = await readSessionToken(cookie);
   if (!token?.apiToken) return null;
   const headers = new Headers(init.headers);
   headers.set("Authorization", `Bearer ${token.apiToken}`);
