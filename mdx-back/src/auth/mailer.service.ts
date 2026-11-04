@@ -59,7 +59,7 @@ export class MailerService {
 
 function logoPath(): string | undefined {
   const candidates = [
-    join(__dirname, 'brand', 'logo-mermas.png'),
+    join(import.meta.dirname, 'brand', 'logo-mermas.png'),
     join(process.cwd(), 'src/auth/brand/logo-mermas.png'),
   ];
   return candidates.find((path) => existsSync(path));
