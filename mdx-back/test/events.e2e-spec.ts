@@ -9,6 +9,8 @@ import { BANNER_MAX_BYTES } from '../src/server/event-schema.js';
 import { cpfFromSeed } from '../src/server/form-schema.js';
 import type { AuthUser } from '../src/server/permissions.js';
 import { EventsRepository } from '../src/events/events.repository.js';
+import { StorageService } from '../src/storage/storage.service.js';
+import { Readable } from 'node:stream';
 
 const png = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
@@ -27,6 +29,10 @@ describe('Eventos (e2e)', () => {
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
+    }).overrideProvider(StorageService).useValue({
+      put: vi.fn().mockResolvedValue(undefined),
+      delete: vi.fn().mockResolvedValue(undefined),
+      get: vi.fn().mockImplementation(() => Readable.from(png)),
     }).compile();
     app = moduleFixture.createNestApplication();
     app.setGlobalPrefix('api');

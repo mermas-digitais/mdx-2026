@@ -14,7 +14,7 @@ export class MailerService {
     const host = this.config.get<string>('SMTP_HOST');
     const from = this.config.get<string>('SMTP_FROM') ?? this.config.get<string>('MAIL_FROM');
     if (!host || !from) {
-      this.logger.log(`Código de entrada para ${email}: ${code}`);
+      if (this.config.get('NODE_ENV') !== 'production') this.logger.log(`Código de entrada para ${email}: ${code}`);
       return false;
     }
 

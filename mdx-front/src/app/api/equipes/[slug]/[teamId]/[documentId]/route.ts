@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getToken } from "next-auth/jwt";
+import { readSessionToken } from "@/lib/session-token";
 import { cookies } from "next/headers";
 
 export async function GET(
@@ -8,10 +8,7 @@ export async function GET(
 ) {
   const { slug, teamId, documentId } = await context.params;
   const cookie = (await cookies()).toString();
-  const token = await getToken({
-    req: { headers: { cookie } },
-    secret: process.env.AUTH_SECRET,
-  });
+  const token = await readSessionToken(cookie);
   if (typeof token?.apiToken !== "string") {
     return NextResponse.json({ message: "Faça login para continuar." }, { status: 401 });
   }

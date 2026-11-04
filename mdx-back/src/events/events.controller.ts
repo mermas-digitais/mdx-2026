@@ -1,5 +1,3 @@
-import { createReadStream } from 'node:fs';
-import { access } from 'node:fs/promises';
 import {
   Body,
   Catch,
@@ -31,8 +29,9 @@ import {
   canManageEvent,
   type AuthUser,
 } from '../server/permissions.js';
-import { EventsService, uploadPath } from './events.service.js';
+import { EventsService, uploadKey } from './events.service.js';
 import { RoboticsService, type IncomingFile } from './robotics.service.js';
+import { StorageService } from '../storage/storage.service.js';
 
 type AuthedRequest = { user: AuthUser };
 
@@ -412,12 +411,7 @@ export class PublicEventsController {
     @Req() request: AuthedRequest,
   ): Promise<StreamableFile> {
     const file = await this.robotics.document(slug, teamId, documentId, request.user);
-    try {
-      await access(file.path);
-    } catch {
-      throw new NotFoundException('Documento não encontrado.');
-    }
-    return new StreamableFile(createReadStream(file.path), {
+    return new StreamableFile(file.stream, {
       type: file.type,
       disposition: `attachment; filename="${file.filename}"`,
     });
@@ -426,21 +420,18 @@ export class PublicEventsController {
 
 @Controller('uploads')
 export class UploadsController {
+  constructor(private readonly storage: StorageService) {}
+
   @Get(':name')
   async file(@Param('name') name: string): Promise<StreamableFile> {
-    const full = uploadPath(name);
-    if (!full) throw new NotFoundException('Arquivo não encontrado.');
-    try {
-      await access(full);
-    } catch {
-      throw new NotFoundException('Arquivo não encontrado.');
-    }
+    const key = uploadKey(name);
+    if (!key) throw new NotFoundException('Arquivo não encontrado.');
     const type = name.endsWith('.png')
       ? 'image/png'
       : name.endsWith('.webp')
         ? 'image/webp'
         : 'image/jpeg';
-    return new StreamableFile(createReadStream(full), {
+    return new StreamableFile(await this.storage.get(key), {
       type,
       disposition: 'inline',
     });

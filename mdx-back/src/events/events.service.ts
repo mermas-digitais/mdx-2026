@@ -1,12 +1,11 @@
 import { randomBytes, randomUUID } from 'node:crypto';
-import { mkdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import {
   BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
-  OnModuleInit,
+  Logger,
 } from '@nestjs/common';
 import type { ZodError, ZodType } from 'zod';
 import type { AuthUser } from '../server/permissions.js';
@@ -53,8 +52,7 @@ import {
   type RuleRecord,
 } from './events.repository.js';
 import { RoboticsRepository, type ModalityVacancy } from './robotics.repository.js';
-
-const uploadsDir = path.join(process.cwd(), 'uploads');
+import { StorageService } from '../storage/storage.service.js';
 
 export type AdminEvent = EventRecord & {
   publishBlockers: string[];
@@ -94,15 +92,13 @@ export type PublicEvent = {
 };
 
 @Injectable()
-export class EventsService implements OnModuleInit {
+export class EventsService {
+  private readonly logger = new Logger(EventsService.name);
   constructor(
     private readonly events: EventsRepository,
     private readonly robotics: RoboticsRepository,
+    private readonly storage: StorageService,
   ) {}
-
-  async onModuleInit() {
-    await mkdir(uploadsDir, { recursive: true });
-  }
 
   async list(user: AuthUser): Promise<AdminEvent[]> {
     const ids = user.role === 'ADMIN' ? null : user.memberships.map((item) => item.eventId);
@@ -224,11 +220,15 @@ export class EventsService implements OnModuleInit {
     const extension =
       file.mimetype === 'image/png' ? 'png' : file.mimetype === 'image/webp' ? 'webp' : 'jpg';
     const filename = `${randomUUID()}.${extension}`;
-    await mkdir(uploadsDir, { recursive: true });
-    await writeFile(path.join(uploadsDir, filename), file.buffer);
+    await this.storage.put(filename, file.buffer, file.mimetype);
     const previous = event.banner;
-    await this.events.update(eventId, { banner: `/api/uploads/${filename}` });
-    await this.removeBannerFile(previous, eventId);
+    try {
+      await this.events.update(eventId, { banner: `/api/uploads/${filename}` });
+    } catch (error) {
+      await this.storage.delete(filename).catch(() => this.logger.warn(`Falha ao limpar banner órfão: ${filename}`));
+      throw error;
+    }
+    await this.removeBannerFile(previous, eventId).catch(() => this.logger.warn('Falha ao limpar banner anterior.'));
     return this.detail(user, eventId);
   }
 
@@ -657,15 +657,13 @@ export class EventsService implements OnModuleInit {
     const filename = path.basename(banner);
     if (!/^[0-9a-f-]{36}\.(jpg|png|webp)$/i.test(filename)) return;
     if (await this.events.bannerInUse(banner, eventId)) return;
-    await rm(path.join(uploadsDir, filename), { force: true });
+    await this.storage.delete(filename);
   }
 }
 
-export function uploadPath(name: string): string | null {
+export function uploadKey(name: string): string | null {
   if (!/^[0-9a-f-]{36}\.(jpg|png|webp)$/i.test(name)) return null;
-  const full = path.resolve(uploadsDir, name);
-  if (!full.startsWith(`${uploadsDir}${path.sep}`)) return null;
-  return full;
+  return name;
 }
 
 function normalize(input: unknown): unknown {

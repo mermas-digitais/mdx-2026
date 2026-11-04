@@ -65,7 +65,7 @@ export type PublicEvent = {
 
 export async function getPublicEvent(slug: string): Promise<PublicEvent | null | undefined> {
   try {
-    const response = await fetch(`${API_URL}/api/events/${encodeURIComponent(slug)}`, {
+    const response = await fetch(`${process.env.API_URL ?? API_URL}/api/events/${encodeURIComponent(slug)}`, {
       cache: "no-store",
     });
     if (response.status === 404) return null;
@@ -78,7 +78,7 @@ export async function getPublicEvent(slug: string): Promise<PublicEvent | null |
 
 export async function getHealth(): Promise<HealthReport> {
   try {
-    const response = await fetch(`${API_URL}/api/health`, {
+    const response = await fetch(`${process.env.API_URL ?? API_URL}/api/health`, {
       cache: "no-store",
     });
 

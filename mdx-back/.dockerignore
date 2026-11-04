@@ -1,0 +1,11 @@
+node_modules
+dist
+generated
+uploads
+coverage
+.env
+.env.*
+!.env.example
+*.tsbuildinfo
+.git
+test
