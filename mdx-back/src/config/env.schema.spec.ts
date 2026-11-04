@@ -17,3 +17,11 @@ it('exige SMTP e remetente em produção', () => {
     ...base, NODE_ENV: 'production', SMTP_HOST: 'smtp.example.com', SMTP_FROM: 'mdx@example.com',
   })).not.toThrow();
 });
+
+it('aceita MAIL_FROM alternativo e normaliza opcionais vazios', () => {
+  const env = validateEnv({ ...base, SMTP_HOST: '', SMTP_PORT: '', SMTP_USER: '   ' });
+  expect(env.SMTP_HOST).toBeUndefined();
+  expect(env.SMTP_PORT).toBeUndefined();
+  expect(env.SMTP_USER).toBeUndefined();
+  expect(() => validateEnv({ ...base, NODE_ENV: 'production', SMTP_HOST: 'smtp.example.com', MAIL_FROM: 'mdx@example.com', SMTP_PORT: 465 })).not.toThrow();
+});

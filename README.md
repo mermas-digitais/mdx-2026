@@ -2,6 +2,8 @@
 
 Dois apps independentes. O Next chama a API Nest por HTTP.
 
+Deploy em produção: [guia do Coolify](docs/coolify.md), com frontend, backend e PostgreSQL separados e arquivos no Garage S3. `render.yaml` é configuração legada, não usada neste fluxo.
+
 - `mdx-front` — Next.js (App Router), React, TypeScript, Tailwind e shadcn/ui. Porta **3000**.
 - `mdx-back` — NestJS, TypeScript, Prisma e Postgres. Porta **3001**.
 
@@ -12,6 +14,7 @@ Precisa de Node.js 22 ou superior (`nvm use` na raiz) e Docker.
 ```bash
 cd mdx-back
 cp .env.example .env
+# Preencha as credenciais S3 do bucket de desenvolvimento no .env.
 docker compose up -d
 npm install
 npm run start:dev
@@ -44,3 +47,5 @@ npm run db:seed
 ```
 
 `db:migrate` cria e aplica a migration no Postgres local. `db:reset` recria o banco do zero, aplica as migrations e roda o seed. O seed inclui o evento MDX 2026 e usuários de exemplo com a senha `mdx-2026`.
+
+Não rode o seed de exemplo nem `db:reset` em produção. Uploads agora usam S3; arquivos locais antigos precisam ser copiados ao bucket antes da troca, conforme o guia de deploy.

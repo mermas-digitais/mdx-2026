@@ -56,6 +56,15 @@ describe('StorageService', () => {
     await expect(storage.get('file')).rejects.toBe(outage);
   });
 
+  it('falha quando o storage não retorna um stream', async () => {
+    send.mockResolvedValue({});
+    await expect(storage.get('empty')).rejects.toMatchObject({ status: 503 });
+  });
+
+  it('encerra o cliente no desligamento', () => {
+    expect(() => storage.onModuleDestroy()).not.toThrow();
+  });
+
   it('remove o objeto no bucket configurado', async () => {
     send.mockResolvedValue({});
     await storage.delete('documents/file.pdf');
