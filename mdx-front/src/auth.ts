@@ -19,19 +19,34 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     Credentials({
       credentials: {
         email: { label: "E-mail", type: "email" },
+        code: { label: "Código", type: "text" },
         password: { label: "Senha", type: "password" },
+        apiToken: { label: "Sessão", type: "text" },
       },
       async authorize(credentials) {
+        const apiToken = String(credentials.apiToken ?? "");
+        if (apiToken) {
+          const adopted = await fetch(`${apiUrl()}/api/auth/session`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ token: apiToken }),
+          });
+          if (!adopted.ok) return null;
+          const body = (await adopted.json()) as SessionBody;
+          return sessionUser(body);
+        }
+
         const email = String(credentials.email ?? "")
           .trim()
           .toLowerCase();
+        const code = String(credentials.code ?? "").replace(/\D/g, "");
         const password = String(credentials.password ?? "");
-        if (!email || !password) return null;
+        if (!email || (!code && !password)) return null;
 
-        const response = await fetch(`${apiUrl()}/api/auth/login`, {
+        const response = await fetch(`${apiUrl()}/api/auth/${code ? "otp/verify" : "login"}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password }),
+          body: JSON.stringify(code ? { email, code } : { email, password }),
         });
 
         if (response.status === 429) {
@@ -39,25 +54,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }
         if (!response.ok) return null;
 
-        const body = (await response.json()) as {
-          token: string;
-          user: {
-            id: string;
-            name: string;
-            email: string;
-            role: "ADMIN" | "USER";
-            memberships: SessionMembership[];
-          };
-        };
-
-        return {
-          id: body.user.id,
-          name: body.user.name,
-          email: body.user.email,
-          role: body.user.role,
-          memberships: body.user.memberships ?? [],
-          apiToken: body.token,
-        };
+        return sessionUser((await response.json()) as SessionBody);
       },
     }),
   ],
@@ -78,3 +75,25 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
   },
 });
+
+type SessionBody = {
+  token: string;
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    role: "ADMIN" | "USER";
+    memberships: SessionMembership[];
+  };
+};
+
+function sessionUser(body: SessionBody) {
+  return {
+    id: body.user.id,
+    name: body.user.name,
+    email: body.user.email,
+    role: body.user.role,
+    memberships: body.user.memberships ?? [],
+    apiToken: body.token,
+  };
+}

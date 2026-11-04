@@ -6,6 +6,7 @@ import { AppModule } from '../src/app.module.js';
 import { TokenService } from '../src/auth/token.service.js';
 import { UsersRepository } from '../src/auth/users.repository.js';
 import { BANNER_MAX_BYTES } from '../src/server/event-schema.js';
+import { cpfFromSeed } from '../src/server/form-schema.js';
 import type { AuthUser } from '../src/server/permissions.js';
 import { EventsRepository } from '../src/events/events.repository.js';
 
@@ -186,7 +187,7 @@ describe('Eventos (e2e)', () => {
 
     await http
       .post('/api/auth/register')
-      .send({ name: 'Pessoa Equipe', email, password: 'senha-segura-1' })
+      .send({ name: 'Pessoa Equipe', email, password: 'senha-segura-1', cpf: cpfFromSeed(stamp) })
       .expect(201);
     await http
       .post(`/api/admin/events/${eventId}/members`)
@@ -383,12 +384,18 @@ describe('Eventos (e2e)', () => {
     const formEmail = `painel-e2e-form-${stamp}@example.com`;
     const account = await http
       .post('/api/auth/register')
-      .send({ name: 'Marina Costa', email: formEmail, password: 'senha-segura-1' })
+      .send({
+        name: 'Marina Costa',
+        email: formEmail,
+        password: 'senha-segura-1',
+        cpf: cpfFromSeed(stamp + 1),
+      })
       .expect(201);
     const person = account.body.token as string;
     const answers = {
       name: 'Marina Costa',
       email: formEmail,
+      cpf: cpfFromSeed(stamp + 1),
       phone: '99999999999',
       institution: 'IFMA',
     };

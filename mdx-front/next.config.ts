@@ -3,6 +3,12 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
+  experimental: {
+    serverActions: {
+      // Um orientador e até 5 integrantes, cada documento com até 5 MB.
+      bodySizeLimit: "32mb",
+    },
+  },
   turbopack: {
     rules: {
       "*.css": {

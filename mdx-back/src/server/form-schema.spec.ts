@@ -26,6 +26,7 @@ const team: FormFieldConfig = {
 const base = {
   name: 'Marina Costa',
   email: 'marina.costa@example.com',
+  cpf: '52998224725',
   phone: '99999999999',
   institution: 'IFMA',
   category: 'VISITOR' as const,
@@ -53,6 +54,8 @@ describe('formulário de inscrição', () => {
       answers: { [how.id]: 'Na escola', [team.id]: 'Íris' },
     });
     expect(same.success).toBe(true);
+    const withoutSchool = schema.safeParse({ ...base, institution: '', answers: { [how.id]: 'Na escola' } });
+    expect(withoutSchool.success).toBe(true);
   });
 
   it('recusa opção fora da lista nos dois lados', () => {

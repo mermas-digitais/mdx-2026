@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState, type CSSProperties } from "react";
+import { CpfField, PhoneField } from "@/components/public/masked-fields";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -45,6 +46,7 @@ export function RegistrationForm({
 }) {
   const [name, setName] = useState(defaultName);
   const [email, setEmail] = useState(defaultEmail);
+  const [cpf, setCpf] = useState("");
   const [phone, setPhone] = useState("");
   const [institution, setInstitution] = useState("");
   const [category, setCategory] = useState<RegistrationCategory>("VISITOR");
@@ -67,6 +69,7 @@ export function RegistrationForm({
     const payload = {
       name,
       email,
+      cpf,
       phone,
       institution,
       category,
@@ -123,13 +126,16 @@ export function RegistrationForm({
       <Field label={fixedFields[1].label} htmlFor="reg-email" hint={fixedFields[1].help} error={errors.email} required>
         <Input id="reg-email" type="email" value={email} onChange={(item) => setEmail(item.target.value)} required />
       </Field>
-      <Field label={fixedFields[2].label} htmlFor="reg-phone" hint={fixedFields[2].help} error={errors.phone} required>
-        <Input id="reg-phone" value={phone} onChange={(item) => setPhone(item.target.value)} required />
+      <Field label={fixedFields[2].label} htmlFor="reg-cpf" hint={fixedFields[2].help} error={errors.cpf} required>
+        <CpfField id="reg-cpf" value={cpf} onChange={setCpf} invalid={Boolean(errors.cpf)} className="h-11 rounded-lg border border-input px-3 md:text-sm" />
       </Field>
-      <Field label={fixedFields[3].label} htmlFor="reg-institution" hint={fixedFields[3].help} error={errors.institution} required>
-        <Input id="reg-institution" value={institution} onChange={(item) => setInstitution(item.target.value)} required />
+      <Field label={fixedFields[3].label} htmlFor="reg-phone" hint={fixedFields[3].help} error={errors.phone} required>
+        <PhoneField id="reg-phone" value={phone} onChange={setPhone} invalid={Boolean(errors.phone)} className="h-11 rounded-lg border border-input px-3 md:text-sm" />
       </Field>
-      <Field label={fixedFields[4].label} htmlFor="reg-category" hint={fixedFields[4].help} error={errors.category} required>
+      <Field label={fixedFields[4].label} htmlFor="reg-institution" hint={fixedFields[4].help} error={errors.institution}>
+        <Input id="reg-institution" value={institution} onChange={(item) => setInstitution(item.target.value)} />
+      </Field>
+      <Field label={fixedFields[5].label} htmlFor="reg-category" hint={fixedFields[5].help} error={errors.category} required>
         <select
           id="reg-category"
           className={selectClass}

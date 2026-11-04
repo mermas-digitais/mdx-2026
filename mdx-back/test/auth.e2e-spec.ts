@@ -5,6 +5,7 @@ import { App } from 'supertest/types.js';
 import { AppModule } from '../src/app.module.js';
 import { TokenService } from '../src/auth/token.service.js';
 import { UsersRepository } from '../src/auth/users.repository.js';
+import { cpfFromSeed } from '../src/server/form-schema.js';
 import type { AuthUser, EventRole } from '../src/server/permissions.js';
 
 const adminRoutes = [
@@ -68,7 +69,7 @@ describe('Autorização (e2e)', () => {
     const password = 'senha-segura-1';
     const registered = await request(app.getHttpServer())
       .post('/api/auth/register')
-      .send({ name: 'Pessoa Comum', email, password })
+      .send({ name: 'Pessoa Comum', email, password, cpf: cpfFromSeed(Date.now()) })
       .expect(201);
 
     expect(registered.body.user.role).toBe('USER');
@@ -95,6 +96,41 @@ describe('Autorização (e2e)', () => {
       .patch('/api/conta/registrations/outra-pessoa')
       .set('Authorization', `Bearer ${logged.body.token}`)
       .expect(403);
+  });
+
+  it('entra com o código enviado ao e-mail cadastrado', async () => {
+    const otpEmail = `otp-${Date.now()}@example.com`;
+    await request(app.getHttpServer())
+      .post('/api/auth/register')
+      .send({
+        name: 'Pessoa Código',
+        email: otpEmail,
+        password: 'senha-segura-1',
+        cpf: cpfFromSeed(Date.now() + 3),
+      })
+      .expect(201);
+
+    const requested = await request(app.getHttpServer())
+      .post('/api/auth/otp/request')
+      .send({ email: otpEmail })
+      .expect(200);
+
+    expect(requested.body.devCode).toMatch(/^\d{6}$/);
+
+    const logged = await request(app.getHttpServer())
+      .post('/api/auth/otp/verify')
+      .send({ email: otpEmail, code: requested.body.devCode })
+      .expect(200);
+
+    expect(logged.body.user.email).toBe(otpEmail);
+    expect(logged.body.token).toEqual(expect.any(String));
+
+    await request(app.getHttpServer())
+      .post('/api/auth/otp/verify')
+      .send({ email: otpEmail, code: requested.body.devCode })
+      .expect(401);
+
+    await users.deleteByEmail(otpEmail);
   });
 
   it('limita tentativas de login pelo e-mail', async () => {

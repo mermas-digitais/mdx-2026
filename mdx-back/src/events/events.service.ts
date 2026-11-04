@@ -31,6 +31,7 @@ import {
 } from '../server/event-schema.js';
 import {
   competitorQuestions,
+  cpfDigits,
   formFieldPatchSchema,
   formFieldSchema,
   formIssues,
@@ -51,6 +52,7 @@ import {
   type MemberRecord,
   type RuleRecord,
 } from './events.repository.js';
+import { RoboticsRepository, type ModalityVacancy } from './robotics.repository.js';
 
 const uploadsDir = path.join(process.cwd(), 'uploads');
 
@@ -88,11 +90,15 @@ export type PublicEvent = {
   activities: ActivityRecord[];
   announcements: AnnouncementRecord[];
   rules: RuleRecord[];
+  modalities: ModalityVacancy[];
 };
 
 @Injectable()
 export class EventsService implements OnModuleInit {
-  constructor(private readonly events: EventsRepository) {}
+  constructor(
+    private readonly events: EventsRepository,
+    private readonly robotics: RoboticsRepository,
+  ) {}
 
   async onModuleInit() {
     await mkdir(uploadsDir, { recursive: true });
@@ -476,6 +482,26 @@ export class EventsService implements OnModuleInit {
         fields: formIssues(parsed.error),
       });
     }
+    if (parsed.data.category === 'COMPETITOR' || parsed.data.category === 'STAFF') {
+      throw new BadRequestException({
+        statusCode: 400,
+        message: 'Revise os campos.',
+        fields: {
+          category: 'A competição é inscrita pelo orientador. Escolha participante.',
+        },
+      });
+    }
+    const assigned = await this.robotics.assignCpf(user.id, cpfDigits(parsed.data.cpf));
+    if (assigned === 'mismatch') {
+      throw new BadRequestException({
+        statusCode: 400,
+        message: 'Revise os campos.',
+        fields: { cpf: 'O CPF da conta é outro.' },
+      });
+    }
+    if (assigned === 'taken') {
+      throw new ConflictException('Já existe uma conta com esse CPF.');
+    }
     const answers = storedAnswers(fields, parsed.data);
     for (let attempt = 0; attempt < 5; attempt += 1) {
       try {
@@ -500,12 +526,13 @@ export class EventsService implements OnModuleInit {
   }
 
   private async toPublic(event: EventRecord, preview: boolean): Promise<PublicEvent> {
-    const [fields, locations, activities, announcements, rules] = await Promise.all([
+    const [fields, locations, activities, announcements, rules, modalities] = await Promise.all([
       this.events.formFields(event.id),
       this.events.locations(event.id),
       this.events.activities(event.id),
       this.events.announcements(event.id),
       this.events.rules(event.id),
+      this.robotics.vacancies(event.id),
     ]);
     return {
       slug: event.slug,
@@ -528,6 +555,7 @@ export class EventsService implements OnModuleInit {
       activities,
       announcements,
       rules,
+      modalities,
     };
   }
 

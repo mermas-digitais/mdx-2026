@@ -15,13 +15,14 @@ import {
   Req,
   StreamableFile,
   UploadedFile,
+  UploadedFiles,
   UseFilters,
   UseGuards,
   UseInterceptors,
   type ArgumentsHost,
   type ExceptionFilter,
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
+import { AnyFilesInterceptor, FileInterceptor } from '@nestjs/platform-express';
 import { AuthGuard, PermissionGuard, RequirePermission } from '../auth/auth.guard.js';
 import { BANNER_MAX_BYTES } from '../server/event-schema.js';
 import {
@@ -31,6 +32,7 @@ import {
   type AuthUser,
 } from '../server/permissions.js';
 import { EventsService, uploadPath } from './events.service.js';
+import { RoboticsService, type IncomingFile } from './robotics.service.js';
 
 type AuthedRequest = { user: AuthUser };
 
@@ -73,7 +75,10 @@ const manage = RequirePermission((user, request) =>
 @Controller('admin/events')
 @UseGuards(AuthGuard, PermissionGuard)
 export class AdminEventsController {
-  constructor(private readonly events: EventsService) {}
+  constructor(
+    private readonly events: EventsService,
+    private readonly robotics: RoboticsService,
+  ) {}
 
   @Get()
   @RequirePermission((user) => canAccessAdmin(user))
@@ -295,6 +300,12 @@ export class AdminEventsController {
     return this.events.deleteFormField(eventId, fieldId, request.user);
   }
 
+  @Get(':eventId/robotics-teams')
+  @manage
+  roboticsTeams(@Param('eventId') eventId: string) {
+    return this.robotics.list(eventId);
+  }
+
   @Delete(':eventId/activities/:activityId')
   @manage
   deleteActivity(
@@ -306,9 +317,38 @@ export class AdminEventsController {
   }
 }
 
+@Catch()
+class DocumentExceptionFilter implements ExceptionFilter {
+  catch(exception: unknown, host: ArgumentsHost) {
+    const response = host.switchToHttp().getResponse<HttpReply>();
+    if (isFileTooLarge(exception)) {
+      response.status(400).json({
+        statusCode: 400,
+        message: 'Cada documento pode ter no máximo 5 MB.',
+      });
+      return;
+    }
+    if (exception instanceof HttpException) {
+      const body = exception.getResponse();
+      const status = exception.getStatus();
+      response
+        .status(status)
+        .json(typeof body === 'string' ? { statusCode: status, message: body } : body);
+      return;
+    }
+    response.status(500).json({
+      statusCode: 500,
+      message: 'Não foi possível enviar o documento.',
+    });
+  }
+}
+
 @Controller('events')
 export class PublicEventsController {
-  constructor(private readonly events: EventsService) {}
+  constructor(
+    private readonly events: EventsService,
+    private readonly robotics: RoboticsService,
+  ) {}
 
   @Get(':slug/preview')
   @UseGuards(AuthGuard)
@@ -330,6 +370,57 @@ export class PublicEventsController {
     @Req() request: AuthedRequest,
   ) {
     return this.events.register(slug, body, request.user);
+  }
+
+  @Get(':slug/teams')
+  @UseGuards(AuthGuard)
+  myTeams(@Param('slug') slug: string, @Req() request: AuthedRequest) {
+    return this.robotics.mine(slug, request.user);
+  }
+
+  @Post(':slug/teams')
+  @HttpCode(201)
+  @UseGuards(AuthGuard)
+  @UseFilters(DocumentExceptionFilter)
+  @UseInterceptors(AnyFilesInterceptor({ limits: { fileSize: 5 * 1024 * 1024, files: 6 } }))
+  createTeam(
+    @Param('slug') slug: string,
+    @Body() body: { payload?: unknown },
+    @UploadedFiles() files: IncomingFile[] | undefined,
+    @Req() request: AuthedRequest,
+  ) {
+    return this.robotics.createTeam(slug, body?.payload, files ?? [], request.user);
+  }
+
+  @Post(':slug/teams/:teamId/withdraw')
+  @HttpCode(200)
+  @UseGuards(AuthGuard)
+  withdrawTeam(
+    @Param('slug') slug: string,
+    @Param('teamId') teamId: string,
+    @Req() request: AuthedRequest,
+  ) {
+    return this.robotics.withdraw(slug, teamId, request.user);
+  }
+
+  @Get(':slug/teams/:teamId/documents/:documentId')
+  @UseGuards(AuthGuard)
+  async document(
+    @Param('slug') slug: string,
+    @Param('teamId') teamId: string,
+    @Param('documentId') documentId: string,
+    @Req() request: AuthedRequest,
+  ): Promise<StreamableFile> {
+    const file = await this.robotics.document(slug, teamId, documentId, request.user);
+    try {
+      await access(file.path);
+    } catch {
+      throw new NotFoundException('Documento não encontrado.');
+    }
+    return new StreamableFile(createReadStream(file.path), {
+      type: file.type,
+      disposition: `attachment; filename="${file.filename}"`,
+    });
   }
 }
 

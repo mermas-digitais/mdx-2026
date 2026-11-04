@@ -9,10 +9,49 @@ export type RegistrationCategory = (typeof registrationCategories)[number];
 export const fixedFields = [
   { key: "name", label: "Nome", help: "O nome que aparece na credencial." },
   { key: "email", label: "E-mail", help: "Usamos para confirmar a inscrição." },
+  { key: "cpf", label: "CPF", help: "Obrigatório. É o dado que junta sua conta com uma equipe." },
   { key: "phone", label: "Telefone", help: "Com DDD, para aviso de mudança." },
-  { key: "institution", label: "Instituição", help: "Escola, coletivo ou projeto." },
+  { key: "institution", label: "Instituição", help: "Opcional para quem só participa do evento." },
   { key: "category", label: "Categoria", help: "Algumas perguntas só aparecem para uma categoria." },
 ] as const;
+
+export function cpfDigits(value: string): string {
+  return value.replace(/\D/g, "");
+}
+
+export function cpfError(value: string): string | null {
+  const digits = cpfDigits(value);
+  if (digits.length !== 11 || /^(\d)\1{10}$/.test(digits)) return "Informe um CPF válido.";
+  const check = (length: number) => {
+    let sum = 0;
+    for (let index = 0; index < length; index += 1) {
+      sum += Number(digits[index]) * (length + 1 - index);
+    }
+    const mod = (sum * 10) % 11;
+    return mod === 10 ? 0 : mod;
+  };
+  if (check(9) !== Number(digits[9]) || check(10) !== Number(digits[10])) {
+    return "Informe um CPF válido.";
+  }
+  return null;
+}
+
+export function cpfFromSeed(seed: number): string {
+  let nine = String(Math.abs(Math.trunc(seed)) % 1_000_000_000).padStart(9, "0");
+  if (/^(\d)\1{8}$/.test(nine)) nine = `${nine.slice(0, 8)}${(Number(nine[8]) + 1) % 10}`;
+  const digits = nine.split("").map(Number);
+  const check = (length: number) => {
+    let sum = 0;
+    for (let index = 0; index < length; index += 1) {
+      sum += digits[index] * (length + 1 - index);
+    }
+    const mod = (sum * 10) % 11;
+    return mod === 10 ? 0 : mod;
+  };
+  digits.push(check(9));
+  digits.push(check(10));
+  return digits.join("");
+}
 
 export type FormFieldConfig = {
   id: string;
@@ -113,16 +152,23 @@ export function registrationSchema(fields: FormFieldConfig[]) {
         .trim()
         .toLowerCase()
         .regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, "Informe um e-mail válido."),
+      cpf: z.string().trim().refine((value) => cpfError(value) === null, "Informe um CPF válido."),
       phone: z
         .string()
         .trim()
-        .min(8, "Informe o telefone com DDD.")
-        .max(20, "O telefone pode ter no máximo 20 caracteres."),
+        .max(20, "O telefone pode ter no máximo 20 caracteres.")
+        .refine((value) => {
+          const digits = value.replace(/\D/g, "").length;
+          return digits === 10 || digits === 11;
+        }, "Informe o telefone com DDD."),
       institution: z
         .string()
         .trim()
-        .min(2, "Informe a instituição.")
-        .max(120, "A instituição pode ter no máximo 120 caracteres."),
+        .max(120, "A instituição pode ter no máximo 120 caracteres.")
+        .refine(
+          (value) => value.length === 0 || value.length >= 2,
+          "Informe a instituição ou deixe em branco.",
+        ),
       category: z.enum(registrationCategories, "Escolha a categoria."),
       answers: z.record(z.string(), z.unknown()).optional(),
     })

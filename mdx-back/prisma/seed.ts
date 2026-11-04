@@ -471,6 +471,14 @@ async function main() {
           },
         ],
       });
+
+      await tx.roboticsModality.createMany({
+        data: [
+          { eventId: event.id, name: 'Caça Balão', slotLimit: 16, displayOrder: 1 },
+          { eventId: event.id, name: 'Sumô', slotLimit: 16, displayOrder: 2 },
+          { eventId: event.id, name: 'Corrida com obstáculos', slotLimit: 16, displayOrder: 3 },
+        ],
+      });
     },
     { timeout: 20_000 },
   );

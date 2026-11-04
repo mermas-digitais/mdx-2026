@@ -50,6 +50,7 @@ const steps = [
   ["equipe", "Equipe"],
   ["atividades", "Atividades"],
   ["formulario", "Formulário"],
+  ["equipes", "Equipes"],
 ] as const;
 
 type Step = (typeof steps)[number][0];
@@ -426,6 +427,7 @@ export function EventEditor({ eventId }: { eventId: string }) {
           {step === "equipe" ? <Team event={event} onChange={apply} /> : null}
           {step === "atividades" ? <ActivitiesLink event={event} /> : null}
           {step === "formulario" ? <FormLink event={event} /> : null}
+          {step === "equipes" ? <RoboticsLink event={event} /> : null}
           {step === "basico" || step === "quando" || step === "aparencia" ? (
             <div className="flex gap-3">
               <Button type="button" variant="outline" onClick={() => void persist(true)}>
@@ -745,11 +747,27 @@ function ActivitiesLink({ event }: { event: AdminEventDetail }) {
   );
 }
 
+function RoboticsLink({ event }: { event: AdminEventDetail }) {
+  return (
+    <div className="flex flex-col items-start gap-3">
+      <p className="text-sm text-brand-purple">
+        Equipes do desafio de robótica, com vaga confirmada ou lista de espera, e os documentos de vínculo.
+      </p>
+      <Button
+        nativeButton={false}
+        render={<Link href={`/admin/eventos/${event.id}/equipes`} />}
+      >
+        Abrir as equipes
+      </Button>
+    </div>
+  );
+}
+
 function FormLink({ event }: { event: AdminEventDetail }) {
   return (
     <div className="flex flex-col items-start gap-3">
       <p className="text-sm text-brand-purple">
-        Nome, e-mail, telefone, instituição e categoria já fazem parte da inscrição.
+        Nome, e-mail, CPF e telefone já fazem parte da inscrição. A instituição é opcional para participante.
       </p>
       <Button
         nativeButton={false}

@@ -417,11 +417,86 @@ export async function criarPerguntasCompeticao(
   }));
 }
 
+export type AccountProfile = {
+  id: string;
+  name: string;
+  email: string;
+  cpf: string | null;
+};
+
+export type RoboticsMember = {
+  id: string;
+  fullName: string;
+  cpf: string;
+  birthDate: string;
+  linked: boolean;
+  accountName: string | null;
+  accountEmail: string | null;
+  accountPhone: string | null;
+  accountInstitution: string | null;
+};
+
+export type RoboticsTeam = {
+  id: string;
+  name: string;
+  institution: string;
+  advisorName: string;
+  advisorEmail: string;
+  advisorPhone: string;
+  withdrawnAt: string | null;
+  members: RoboticsMember[];
+  modalities: { modalityId: string; name: string; status: "CONFIRMED" | "WAITLIST" | "CANCELLED" }[];
+};
+
+export async function meuPerfil(): Promise<Success<AccountProfile> | Failure> {
+  const user = await currentUser();
+  if (!user) return { ok: false, status: 401, message: "Faça login para continuar." };
+  return parse(await authorizedFetch("/api/auth/me"));
+}
+
+export async function minhasEquipes(slug: string): Promise<Success<RoboticsTeam[]> | Failure> {
+  const user = await currentUser();
+  if (!user) return { ok: false, status: 401, message: "Entre na sua conta para se inscrever." };
+  return parse(await authorizedFetch(`/api/events/${encodeURIComponent(slug)}/teams`));
+}
+
+export async function inscreverEquipe(
+  slug: string,
+  formData: FormData,
+): Promise<Success<RoboticsTeam> | Failure> {
+  const user = await currentUser();
+  if (!user) return { ok: false, status: 401, message: "Entre na sua conta para se inscrever." };
+  return parse(await authorizedFetch(`/api/events/${encodeURIComponent(slug)}/teams`, {
+    method: "POST",
+    body: formData,
+  }));
+}
+
+export async function desistirEquipe(
+  slug: string,
+  teamId: string,
+): Promise<Success<RoboticsTeam> | Failure> {
+  const user = await currentUser();
+  if (!user) return { ok: false, status: 401, message: "Entre na sua conta para se inscrever." };
+  return parse(await authorizedFetch(`/api/events/${encodeURIComponent(slug)}/teams/${teamId}/withdraw`, {
+    method: "POST",
+  }));
+}
+
+export async function listarEquipes(
+  eventId: string,
+): Promise<Success<RoboticsTeam[]> | Failure> {
+  const user = await currentUser();
+  if (!canManageEvent(user, eventId)) return denied();
+  return parse(await authorizedFetch(`/api/admin/events/${eventId}/robotics-teams`));
+}
+
 export async function inscrever(
   slug: string,
   input: {
     name: string;
     email: string;
+    cpf: string;
     phone: string;
     institution: string;
     category: RegistrationCategory;

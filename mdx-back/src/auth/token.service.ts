@@ -35,6 +35,23 @@ export class TokenService {
       .sign(this.secret);
   }
 
+  signEmailProof(email: string): Promise<string> {
+    return new SignJWT({ purpose: 'email-proof', email })
+      .setProtectedHeader({ alg: 'HS256' })
+      .setSubject(email)
+      .setIssuedAt()
+      .setExpirationTime('30m')
+      .sign(this.secret);
+  }
+
+  async verifyEmailProof(token: string): Promise<string> {
+    const { payload } = await jwtVerify(token, this.secret);
+    if (payload.purpose !== 'email-proof' || typeof payload.email !== 'string') {
+      throw new Error('Token inválido');
+    }
+    return payload.email;
+  }
+
   async verify(token: string): Promise<TokenUser> {
     const { payload } = await jwtVerify(token, this.secret);
     const id = payload.sub;

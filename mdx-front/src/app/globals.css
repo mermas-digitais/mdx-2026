@@ -286,6 +286,108 @@
   pointer-events: none;
 }
 
+@keyframes email-ok-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes email-ok-pop {
+  0% {
+    transform: scale(0.72);
+  }
+  65% {
+    transform: scale(1.06);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes email-ok-ring {
+  0% {
+    transform: scale(0.82);
+    opacity: 0.5;
+  }
+  100% {
+    transform: scale(1.42);
+    opacity: 0;
+  }
+}
+
+@keyframes email-ok-spark {
+  0% {
+    transform: scale(0) rotate(-18deg);
+    opacity: 0;
+  }
+  55% {
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+@keyframes email-ok-rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.email-ok-badge {
+  animation: email-ok-pop 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.email-ok-ring {
+  position: absolute;
+  inset: 8px;
+  border-radius: 9999px;
+  border: 2px solid #ff4a97;
+  animation: email-ok-ring 1.15s ease-out 0.35s both;
+}
+
+.email-ok-ring-late {
+  animation-delay: 0.7s;
+  border-color: #ffb347;
+}
+
+.email-ok-circle {
+  fill: none;
+  stroke: url("#email-ok-gradient");
+  stroke-width: 6;
+  stroke-linecap: round;
+  stroke-dasharray: 290;
+  stroke-dashoffset: 290;
+  animation: email-ok-draw 0.75s ease 0.15s forwards;
+}
+
+.email-ok-check {
+  fill: none;
+  stroke: #330043;
+  stroke-width: 7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 80;
+  stroke-dashoffset: 80;
+  animation: email-ok-draw 0.4s ease 0.72s forwards;
+}
+
+.email-ok-spark {
+  position: absolute;
+  opacity: 0;
+  animation: email-ok-spark 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) 0.85s forwards;
+}
+
+.email-ok-copy {
+  animation: email-ok-rise 0.5s ease 0.9s both;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .mdx-marquee {
     width: auto;
@@ -302,8 +404,25 @@
   .mdx-glow-btn,
   .mdx-glow-btn::before,
   .mdx-inscrever,
-  .mdx-inscrever::after {
+  .mdx-inscrever::after,
+  .email-ok-badge,
+  .email-ok-ring,
+  .email-ok-circle,
+  .email-ok-check,
+  .email-ok-spark,
+  .email-ok-copy {
     animation: none;
+  }
+
+  .email-ok-circle,
+  .email-ok-check {
+    stroke-dashoffset: 0;
+  }
+
+  .email-ok-spark,
+  .email-ok-copy {
+    opacity: 1;
+    transform: none;
   }
 
   .mdx-glow-btn {

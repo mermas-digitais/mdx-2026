@@ -54,6 +54,13 @@ export type PublicEvent = {
   activities?: PublicActivity[];
   announcements?: { id: string; title: string; body: string; publishedAt: string }[];
   rules?: { id: string; title: string; rules: string }[];
+  modalities?: {
+    id: string;
+    name: string;
+    slotLimit: number;
+    confirmed: number;
+    waitlist: number;
+  }[];
 };
 
 export async function getPublicEvent(slug: string): Promise<PublicEvent | null | undefined> {

@@ -1,24 +1,23 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { categoryLabel } from "@/components/registration-form";
+import { GradientButton, StepHeading } from "@/components/public/form-chrome";
+import { CpfField, inscriptionInputClass, PhoneField, formatCpf } from "@/components/public/masked-fields";
 import {
   answerError,
   fieldApplies,
   fixedFields,
   formIssues,
-  registrationCategories,
   registrationSchema,
   type FormFieldConfig,
-  type RegistrationCategory,
 } from "@/server/form-schema";
 import { inscrever } from "@/server/events";
 
 const selectClass =
-  "h-12 w-full rounded-2xl border-2 border-[#330043] bg-white px-3 text-base text-[#330043] outline-none focus-visible:ring-3 focus-visible:ring-[#7C3AED]";
+  "h-14 w-full rounded-full border-0 bg-white px-5 text-base text-[#330043] shadow-[0_10px_28px_rgba(88,28,135,0.08)] ring-1 ring-[#F6E9FF] outline-none focus:ring-2 focus:ring-[#FF4A97]";
 
 export function SteppedRegistration({
   fields,
@@ -27,6 +26,10 @@ export function SteppedRegistration({
   closed = false,
   defaultName = "",
   defaultEmail = "",
+  accountCpf = "",
+  prepareAccount,
+  checkCpf,
+  onBack,
 }: {
   fields: FormFieldConfig[];
   slug?: string;
@@ -34,13 +37,18 @@ export function SteppedRegistration({
   closed?: boolean;
   defaultName?: string;
   defaultEmail?: string;
+  accountCpf?: string;
+  prepareAccount?: (name: string, cpf: string) => Promise<string | null>;
+  checkCpf?: (cpf: string) => Promise<string | null>;
+  onBack?: () => void;
 }) {
   const [step, setStep] = useState(0);
   const [name, setName] = useState(defaultName);
-  const [email, setEmail] = useState(defaultEmail);
+  const email = defaultEmail;
+  const [cpf, setCpf] = useState(() => formatCpf(accountCpf));
   const [phone, setPhone] = useState("");
   const [institution, setInstitution] = useState("");
-  const [category, setCategory] = useState<RegistrationCategory>("VISITOR");
+  const category = "VISITOR" as const;
   const [answers, setAnswers] = useState<Record<string, string | boolean | string[]>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [message, setMessage] = useState<string | null>(null);
@@ -50,15 +58,20 @@ export function SteppedRegistration({
     () => fields.filter((field) => fieldApplies(field, category)),
     [fields, category],
   );
-  const stages: Array<"voce" | "categoria" | "perguntas" | "confirmar"> = visible.length > 0
-    ? ["voce", "categoria", "perguntas", "confirmar"]
-    : ["voce", "categoria", "confirmar"];
+  const stages: Array<"voce" | "perguntas" | "confirmar"> = visible.length > 0
+    ? ["voce", "perguntas", "confirmar"]
+    : ["voce", "confirmar"];
   const current = stages[Math.min(step, stages.length - 1)] ?? "voce";
+
+  useEffect(() => {
+    document.getElementById("inscricao-card")?.scrollTo({ top: 0 });
+  }, [step]);
 
   function payload() {
     return {
       name,
       email,
+      cpf,
       phone,
       institution,
       category,
@@ -79,11 +92,11 @@ export function SteppedRegistration({
     return parsed.success ? {} : formIssues(parsed.error);
   }
 
-  function next() {
+  async function next() {
     const found = issues();
     const keys =
       current === "voce"
-        ? ["name", "email", "phone", "institution"]
+        ? ["name", "email", "cpf", "phone", "institution"]
         : current === "perguntas"
           ? visible.map((field) => `answers.${field.id}`)
           : [];
@@ -91,6 +104,16 @@ export function SteppedRegistration({
     if (Object.keys(stepErrors).length > 0) {
       setErrors(stepErrors);
       return;
+    }
+    if (current === "voce" && checkCpf) {
+      setPending(true);
+      const cpfMessage = await checkCpf(cpf);
+      setPending(false);
+      if (cpfMessage) {
+        setErrors({ cpf: cpfMessage });
+        document.getElementById("reg-cpf")?.scrollIntoView({ block: "center" });
+        return;
+      }
     }
     setErrors({});
     setStep((value) => Math.min(value + 1, stages.length - 1));
@@ -100,7 +123,7 @@ export function SteppedRegistration({
     const found = issues();
     if (Object.keys(found).length > 0) {
       setErrors(found);
-      if (found.name || found.email || found.phone || found.institution) setStep(0);
+      if (found.name || found.email || found.cpf || found.phone || found.institution) setStep(0);
       else if (Object.keys(found).some((key) => key.startsWith("answers."))) {
         const perguntas = stages.indexOf("perguntas");
         if (perguntas >= 0) setStep(perguntas);
@@ -108,19 +131,42 @@ export function SteppedRegistration({
       return;
     }
     setErrors({});
+    setPending(true);
+    if (prepareAccount) {
+      const accountError = await prepareAccount(name, cpf);
+      if (accountError) {
+        setPending(false);
+        if (/cpf/i.test(accountError)) {
+          setStep(0);
+          setErrors({ cpf: accountError });
+          setMessage(null);
+          return;
+        }
+        setMessage(accountError);
+        return;
+      }
+    }
     if (preview || !slug) {
+      setPending(false);
       setMessage("Pré-visualização válida. Nada foi enviado.");
       return;
     }
     if (closed) {
+      setPending(false);
       setMessage("As inscrições deste evento estão encerradas.");
       return;
     }
-    setPending(true);
     const result = await inscrever(slug, payload());
     setPending(false);
     if (!result.ok) {
-      setErrors(result.fields ?? {});
+      const fields = result.fields ?? {};
+      if (fields.cpf || /cpf/i.test(result.message)) {
+        setStep(0);
+        setErrors({ ...fields, cpf: fields.cpf ?? result.message });
+        setMessage(null);
+        return;
+      }
+      setErrors(fields);
       setMessage(result.message);
       return;
     }
@@ -140,64 +186,34 @@ export function SteppedRegistration({
   }
 
   return (
-    <div className="flex flex-col gap-5">
-      <p className="font-heading text-sm font-bold tracking-widest text-[#BE185D] uppercase">
-        Passo {stages.indexOf(current) + 1} de {stages.length}
-      </p>
-      <ol className="flex gap-2" aria-hidden="true">
-        {stages.map((stage, index) => (
-          <li
-            key={stage}
-            className={index <= stages.indexOf(current) ? "h-2 flex-1 rounded-full bg-[#FF4A97]" : "h-2 flex-1 rounded-full bg-[#330043]/15"}
-          />
-        ))}
-      </ol>
+    <div className="flex flex-col gap-6">
+      <StepHeading
+        step={stages.indexOf(current) + 1}
+        total={stages.length}
+        kicker={current === "voce" ? "Sobre você" : current === "perguntas" ? "Mais um pouco" : "Quase lá"}
+        title={current === "voce" ? "Conte um pouco sobre quem você é" : current === "perguntas" ? "Responde rapidinho" : "Confere e envia"}
+      />
 
       {current === "voce" ? (
         <fieldset className="flex flex-col gap-4">
-          <legend className="font-heading text-3xl">Sobre você</legend>
-          <Field label={fixedFields[0].label} htmlFor="reg-name" hint={fixedFields[0].help} error={errors.name} required>
-            <Input id="reg-name" value={name} onChange={(item) => setName(item.target.value)} autoComplete="name" />
+          <p className="text-center text-sm text-[#8B7C99]">E-mail confirmado: <strong className="text-[#330043]">{email}</strong></p>
+          <Field label={fixedFields[0].label} htmlFor="reg-name" error={errors.name} required>
+            <Input id="reg-name" className={inscriptionInputClass} value={name} onChange={(item) => setName(item.target.value)} autoComplete="name" aria-invalid={errors.name ? true : undefined} />
           </Field>
-          <Field label={fixedFields[1].label} htmlFor="reg-email" hint={fixedFields[1].help} error={errors.email} required>
-            <Input id="reg-email" type="email" value={email} onChange={(item) => setEmail(item.target.value)} autoComplete="email" />
+          <Field label={fixedFields[2].label} htmlFor="reg-cpf" error={errors.cpf} required>
+            <CpfField id="reg-cpf" value={cpf} onChange={setCpf} readOnly={accountCpf.length > 0} invalid={Boolean(errors.cpf)} />
           </Field>
-          <Field label={fixedFields[2].label} htmlFor="reg-phone" hint={fixedFields[2].help} error={errors.phone} required>
-            <Input id="reg-phone" value={phone} onChange={(item) => setPhone(item.target.value)} autoComplete="tel" />
+          <Field label={fixedFields[3].label} htmlFor="reg-phone" error={errors.phone} required>
+            <PhoneField id="reg-phone" value={phone} onChange={setPhone} invalid={Boolean(errors.phone)} />
           </Field>
-          <Field label={fixedFields[3].label} htmlFor="reg-institution" hint={fixedFields[3].help} error={errors.institution} required>
-            <Input id="reg-institution" value={institution} onChange={(item) => setInstitution(item.target.value)} />
+          <Field label={fixedFields[4].label} htmlFor="reg-institution" error={errors.institution}>
+            <Input id="reg-institution" className={inscriptionInputClass} value={institution} onChange={(item) => setInstitution(item.target.value)} aria-invalid={errors.institution ? true : undefined} />
           </Field>
-        </fieldset>
-      ) : null}
-
-      {current === "categoria" ? (
-        <fieldset className="flex flex-col gap-4">
-          <legend className="font-heading text-3xl">Como você participa</legend>
-          <p className="text-sm text-[#4C1D95]">{fixedFields[4].help}</p>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {registrationCategories.map((item) => (
-              <button
-                key={item}
-                type="button"
-                aria-pressed={category === item}
-                onClick={() => setCategory(item)}
-                className={
-                  category === item
-                    ? "min-h-16 rounded-3xl border-4 border-[#330043] bg-[#FFCD34] px-4 py-3 text-left font-heading text-xl text-[#330043] shadow-[4px_4px_0_#330043]"
-                    : "min-h-16 rounded-3xl border-4 border-[#330043] bg-white px-4 py-3 text-left font-heading text-xl text-[#330043]"
-                }
-              >
-                {categoryLabel[item]}
-              </button>
-            ))}
-          </div>
         </fieldset>
       ) : null}
 
       {current === "perguntas" ? (
         <fieldset className="flex flex-col gap-4">
-          <legend className="font-heading text-3xl">Mais um pouco</legend>
           {visible.map((field) => (
             <CustomField
               key={field.id}
@@ -212,13 +228,12 @@ export function SteppedRegistration({
 
       {current === "confirmar" ? (
         <div className="flex flex-col gap-4">
-          <h2 className="font-heading text-3xl">Confere e envia</h2>
-          <dl className="grid gap-3 rounded-3xl border-4 border-[#330043] bg-[#FFF6FB] p-4">
+          <dl className="grid gap-3 rounded-3xl bg-[#FFF6FB] p-4">
             <Review label="Nome" value={name} />
             <Review label="E-mail" value={email} />
+            <Review label="CPF" value={cpf} />
             <Review label="Telefone" value={phone} />
-            <Review label="Instituição" value={institution} />
-            <Review label="Categoria" value={categoryLabel[category]} />
+            <Review label="Instituição" value={institution || "—"} />
             {visible.map((field) => (
               <Review key={field.id} label={field.label} value={showAnswer(field, answers[field.id])} />
             ))}
@@ -234,37 +249,27 @@ export function SteppedRegistration({
         </Link>
       ) : null}
 
-      <div className="flex flex-wrap gap-3">
-        {stages.indexOf(current) > 0 ? (
+      <div className="flex flex-col gap-3">
+        {current === "confirmar" ? (
+          <GradientButton onClick={() => void submit()} disabled={pending || (closed && !preview)}>
+            {pending ? "Enviando…" : preview ? "Testar validação" : "Enviar"}
+          </GradientButton>
+        ) : (
+          <GradientButton onClick={() => void next()} disabled={pending}>Enviar</GradientButton>
+        )}
+        {stages.indexOf(current) > 0 || onBack ? (
           <button
             type="button"
             onClick={() => {
               setErrors({});
-              setStep((value) => Math.max(0, value - 1));
+              if (stages.indexOf(current) === 0) onBack?.();
+              else setStep((value) => Math.max(0, value - 1));
             }}
-            className="inline-flex h-12 items-center rounded-full border-4 border-[#330043] bg-white px-5 font-bold text-[#330043]"
+            className="h-11 text-sm text-[#A398AE]"
           >
             Voltar
           </button>
         ) : null}
-        {current === "confirmar" ? (
-          <button
-            type="button"
-            onClick={() => void submit()}
-            disabled={pending || (closed && !preview)}
-            className="inline-flex h-14 items-center rounded-full border-4 border-[#330043] bg-[#FFCD34] px-6 font-heading text-xl font-bold text-[#330043] shadow-[4px_4px_0_#330043] disabled:opacity-50"
-          >
-            {pending ? "Enviando…" : preview ? "Testar validação" : "Enviar inscrição"}
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={next}
-            className="inline-flex h-14 items-center rounded-full border-4 border-[#330043] bg-[#FF4A97] px-6 font-heading text-xl font-bold text-[#330043] shadow-[4px_4px_0_#330043]"
-          >
-            Continuar
-          </button>
-        )}
       </div>
     </div>
   );
@@ -302,14 +307,14 @@ function CustomField({
   const id = `field-${field.id}`;
   if (field.type === "LONGTEXT") {
     return (
-      <Field label={field.label} htmlFor={id} hint={field.help} error={error} required={field.required}>
-        <Textarea id={id} value={typeof value === "string" ? value : ""} onChange={(item) => onChange(item.target.value)} />
+      <Field label={field.label} htmlFor={id} error={error} required={field.required}>
+        <Textarea id={id} className="min-h-28 rounded-3xl border-0 bg-white px-5 py-4 text-base text-[#330043] shadow-[0_10px_28px_rgba(88,28,135,0.08)] ring-1 ring-[#F6E9FF] md:text-base" value={typeof value === "string" ? value : ""} onChange={(item) => onChange(item.target.value)} />
       </Field>
     );
   }
   if (field.type === "SELECT") {
     return (
-      <Field label={field.label} htmlFor={id} hint={field.help} error={error} required={field.required}>
+      <Field label={field.label} htmlFor={id} error={error} required={field.required}>
         <select id={id} className={selectClass} value={typeof value === "string" ? value : ""} onChange={(item) => onChange(item.target.value)}>
           <option value="">Escolha</option>
           {field.options.map((option) => (
@@ -326,7 +331,6 @@ function CustomField({
           <input id={id} type="checkbox" className="size-5 accent-[#BE185D]" checked={value === true} onChange={(item) => onChange(item.target.checked)} />
           {field.label}{field.required ? " *" : ""}
         </label>
-        {field.help ? <p className="text-sm text-[#4C1D95]">{field.help}</p> : null}
         {error ? <p className="text-sm font-semibold text-[#BE185D]">{error}</p> : null}
       </div>
     );
@@ -336,7 +340,6 @@ function CustomField({
     return (
       <fieldset className="flex flex-col gap-2">
         <legend className="font-semibold">{field.label}{field.required ? " *" : ""}</legend>
-        {field.help ? <p className="text-sm text-[#4C1D95]">{field.help}</p> : null}
         {field.options.map((option) => (
           <label key={option} className="flex min-h-11 items-center gap-2">
             <input
@@ -358,9 +361,10 @@ function CustomField({
     );
   }
   return (
-    <Field label={field.label} htmlFor={id} hint={field.help} error={error} required={field.required}>
+    <Field label={field.label} htmlFor={id} error={error} required={field.required}>
       <Input
         id={id}
+        className={inscriptionInputClass}
         type={field.type === "NUMBER" ? "number" : "text"}
         value={typeof value === "string" ? value : ""}
         onChange={(item) => onChange(item.target.value)}
@@ -372,25 +376,22 @@ function CustomField({
 function Field({
   label,
   htmlFor,
-  hint,
   error,
   required,
   children,
 }: {
   label: string;
   htmlFor: string;
-  hint?: string;
   error?: string;
   required?: boolean;
   children: React.ReactNode;
 }) {
   return (
     <div className="flex flex-col gap-2">
-      <label htmlFor={htmlFor} className="font-semibold">
-        {label}{required ? " *" : ""}
+      <label htmlFor={htmlFor} className="text-sm font-semibold text-[#330043]">
+        {label}{required ? "*" : ""}:
       </label>
       {children}
-      {hint ? <p className="text-sm text-[#4C1D95]">{hint}</p> : null}
       {error ? <p className="text-sm font-semibold text-[#BE185D]">{error}</p> : null}
     </div>
   );
