@@ -12,7 +12,19 @@ Projeto **mdx26** (`wpsck9cvojkq6sdac83cv8sq`), ambiente **production** (`nuk8lk
 | `mdx26-backend` | `fxz53g1b93eq4thzfvgc7x0x` | `https://api.mdx26.fabitz.com.br` |
 | `mdx26-frontend` | `upkcm0xrnkyzwtejuywoowux` | `https://mdx26.fabitz.com.br` |
 
-Recursos criados **sem iniciar/deploy**. Aplicações apontam para `main`, com autodeploy e previews desabilitados. O PR inicial da migração S3 já foi integrado à `main`; o primeiro deploy continua sendo uma ação manual separada. DNS dos dois domínios foi consultado e resolve; isso não valida TLS nem disponibilidade das aplicações.
+Backend e frontend publicados e verificados como `running:healthy`, com seus endpoints de health respondendo HTTP 200 por HTTPS. Aplicações apontam para `main`, com autodeploy habilitado e previews desabilitados. O PostgreSQL foi iniciado separadamente e está acessível pela API na rede privada.
+
+A home `/` redireciona para `/e/mdx-2026` com HTTP 307, preservando parâmetros de campanha. O healthcheck técnico continua em `/api/health`, sem redirecionamento. O evento precisa existir e estar publicado no banco; o redirect não cria nem publica eventos.
+
+### Healthcheck e deploy automático
+
+Manter `health_check_enabled=false` no painel do Coolify para **não sobrescrever o `HEALTHCHECK` dos Dockerfiles**. Isso não desliga a verificação de saúde da imagem: os logs devem mostrar `Using the custom healthcheck from the Dockerfile.` e confirmar o container saudável antes da troca. O comando da imagem usa Node `fetch`, sem depender de `curl`/`wget`. Ativar o healthcheck HTTP do painel causou rollback nos primeiros deploys porque esses binários não existem nas imagens slim.
+
+Autodeploy configurado em backend e frontend, sem filtro de arquivos (`watch_paths` vazio): qualquer push em `main` deve disparar ambos. Push em outras branches não corresponde à branch de produção. O banco não é reconstruído por alteração de código; as migrations continuam sendo aplicadas no início da API.
+
+Webhook GitHub ativo `707524551`, evento `push`, URL `https://infra.fabitz.com.br/webhooks/source/github/events/manual`, payload JSON, validação TLS e assinatura HMAC-SHA256. As duas aplicações têm o mesmo segredo aleatório em `manual_webhook_secret_github`, permitindo um único webhook para o repositório. O segredo fica no GitHub/Coolify, nunca no Git. O teste de push com `refs/heads/main` retornou HTTP 200 e enfileirou um deploy para cada aplicação; o teste de ping sozinho não comprova isso.
+
+Se recriar as aplicações, reconfigurar o segredo compartilhado e o webhook, além de habilitar autodeploy. Apenas marcar a opção no painel não conecta um repositório público aos eventos do GitHub. Não adicionar outro webhook equivalente, para evitar deploys duplicados. Commits com `[skip ci]`/`[skip cd]` podem ser ignorados pelo Coolify.
 
 ### Variáveis locais e de produção
 
@@ -26,7 +38,7 @@ O `.env` da raiz é um inventário local privado, não um arquivo para copiar in
 - Apenas `NEXT_PUBLIC_API_URL` do frontend está disponível no build. Demais variáveis são runtime-only; injeção automática de argumentos nos Dockerfiles foi desabilitada. Escopos conferidos também nas cópias de preview, embora previews estejam desabilitados.
 - Valores com caracteres especiais foram enviados como literais. Não colocar `.env`, senhas ou tokens em commits/PRs; `.env.example` permanece versionável. As aplicações não carregam o `.env` da raiz automaticamente quando iniciadas em seus subdiretórios.
 
-Conferidas presença de 22 variáveis locais, distinção/tamanho dos segredos de autenticação, senha do banco de produção e persistência das variáveis no Coolify, sem imprimir valores. Entrega SMTP, TLS e conectividade de containers ainda dependem da validação de deploy. Credenciais expostas em conversa devem ser rotacionadas em manutenção coordenada.
+Conferidas presença de 22 variáveis locais, distinção/tamanho dos segredos de autenticação, senha do banco de produção e persistência das variáveis no Coolify, sem imprimir valores. TLS público, saúde das imagens e conectividade API/PostgreSQL foram verificados após o deploy. Entrega SMTP e fluxos completos de usuário ainda precisam de validação. Credenciais expostas em conversa devem ser rotacionadas em manutenção coordenada.
 
 ## Storage preparado
 
@@ -58,7 +70,7 @@ Criar Application a partir deste repositório:
 | Base Directory | `/mdx-back` |
 | Dockerfile Location | `/Dockerfile` |
 | Porta interna | `3001` |
-| Healthcheck | `GET /api/health`, porta `3001` |
+| Healthcheck | Usar o `HEALTHCHECK` Node da imagem (`GET /api/health`, porta `3001`); desabilitar sobrescrita no painel |
 | Domínio | HTTPS da API, escolhido antes do build do frontend |
 
 Variáveis **somente runtime**, sem colocá-las como build arguments:
@@ -97,7 +109,7 @@ Criar outra Application, mesmo repositório/branch:
 | Base Directory | `/mdx-front` |
 | Dockerfile Location | `/Dockerfile` |
 | Porta interna | `3000` |
-| Healthcheck | `GET /api/health`, porta `3000` |
+| Healthcheck | Usar o `HEALTHCHECK` Node da imagem (`GET /api/health`, porta `3000`); desabilitar sobrescrita no painel |
 | Domínio | HTTPS do frontend |
 
 Variável **build e runtime** (pública, não secreta):
@@ -165,7 +177,7 @@ Backend: `npm ci`, `npm test`, `npm run build`. `npm run storage:check` usa as v
 
 Frontend: `npm ci`, `npm test`, `npm run lint`, `npm run build`. Usar Node 22.22.3+ na linha 22, ou 24.15+ na linha 24 (dependências do Nest CLI exigem essas versões). Dockerfiles usam Node 22 e npm 11.
 
-`render.yaml` permanece como legado e não participa do deploy no Coolify. Não ativar autodeploy das aplicações antes de revisar domínios/variáveis e aprovar o primeiro deploy manual.
+`render.yaml` permanece como legado e não participa do deploy no Coolify. Domínios/variáveis e primeiros deploys manuais foram verificados; os próximos pushes em `main` usam o webhook de autodeploy acima.
 
 ### Validação desta preparação
 
@@ -173,4 +185,6 @@ Frontend: `npm ci`, `npm test`, `npm run lint`, `npm run build`. Usar Node 22.22
 - Frontend: build standalone, três testes de sessão HTTP/HTTPS e health do processo standalone passaram. Lint sem erros, com avisos preexistentes de `<img>`.
 - Garage real: upload/leitura autenticada/bloqueio anônimo/exclusão passaram; objeto temporário removido. Bucket permaneceu privado e vazio.
 - Auditoria `npm audit --omit=dev`: backend sem vulnerabilidades reportadas; frontend com seis alertas baixos/moderados na árvore do CLI `shadcn`, mantidos fora desta mudança. Não aplicado `audit fix --force`.
-- Ainda pendentes: build das imagens Linux (Docker local indisponível), E2E com Postgres, envio SMTP real, migração dos dados existentes e teste completo após deploy no Coolify. Não houve deploy das aplicações. O PR inicial foi integrado à `main`; as alterações posteriores de provisionamento são registradas em outro PR.
+- Imagens Linux e healthchecks validados no Coolify após corrigir a sobrescrita HTTP do painel. As sete migrations foram aplicadas com sucesso e o health da API confirma Postgres `up`. Ambos os endpoints públicos retornam HTTP 200 com TLS válido.
+- Autodeploy validado com evento push do GitHub para `main`, assinatura conferida e deploys enfileirados para as duas aplicações.
+- Ainda pendentes: E2E completo com usuários, envio SMTP real, backups/restauração e eventual migração dos uploads existentes. Esses itens não são comprovados apenas pelo healthcheck.

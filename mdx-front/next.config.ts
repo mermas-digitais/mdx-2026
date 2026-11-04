@@ -2,6 +2,9 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  redirects() {
+    return [{ source: "/", destination: "/e/mdx-2026", permanent: false }];
+  },
   cacheComponents: true,
   partialPrefetching: true,
   experimental: {
