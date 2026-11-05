@@ -44,7 +44,7 @@ const published = {
   place: 'IFMA Imperatriz', address: 'Campus Imperatriz — MA',
 };
 
-test('Event JSON-LD usa fatos do evento, sem inventar preços ou horários', () => {
+test('Event JSON-LD usa fatos confirmados do evento, sem inventar horários', () => {
   process.env.AUTH_URL = 'https://mdx26.mermasdigitais.com.br';
   const data = eventStructuredData(published, null);
   assert.equal(data['@context'], 'https://schema.org');
@@ -60,8 +60,10 @@ test('Event JSON-LD usa fatos do evento, sem inventar preços ou horários', () 
   assert.equal(data.description, 'Meninas na tecnologia. Inscrições abertas.');
   assert.equal(data.eventStatus, 'https://schema.org/EventScheduled');
   assert.equal(data.eventAttendanceMode, 'https://schema.org/OfflineEventAttendanceMode');
-  assert.equal(data.offers, undefined);
-  assert.equal(data.isAccessibleForFree, undefined);
+  assert.equal(data.offers['@type'], 'Offer');
+  assert.equal(data.offers.price, 0);
+  assert.equal(data.offers.priceCurrency, 'BRL');
+  assert.equal(data.isAccessibleForFree, true);
 });
 
 test('não gera Event para prévia, rascunho, datas inválidas ou local incompleto', () => {
