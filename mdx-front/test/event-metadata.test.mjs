@@ -55,6 +55,7 @@ test('Event JSON-LD usa fatos do evento, sem inventar preços ou horários', () 
   assert.equal(data.location.name, published.place);
   assert.equal(data.location.address, published.address);
   assert.equal(data.organizer.name, 'Mermãs Digitais');
+  assert.equal(data.organizer.url, 'https://mermasdigitais.com.br/');
   assert.equal(data.image, 'https://mdx26.mermasdigitais.com.br/social/mdx-2026-og.jpg');
   assert.equal(data.description, 'Meninas na tecnologia. Inscrições abertas.');
   assert.equal(data.eventStatus, 'https://schema.org/EventScheduled');
