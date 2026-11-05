@@ -5,7 +5,7 @@ export function eventMetadata(
   event: Pick<PublicEvent, "slug" | "title" | "description" | "theme" | "preview">,
   banner: string | null,
 ): Metadata {
-  const origin = new URL(process.env.AUTH_URL ?? "https://mdx26.fabitz.com.br").origin;
+  const origin = new URL(process.env.AUTH_URL ?? "https://mdx26.mermasdigitais.com.br").origin;
   const url = `${origin}/e/${encodeURIComponent(event.slug)}`;
   const isMdx = event.slug === "mdx-2026";
   const title = isMdx ? "MDX STEAM 2026" : event.title;
