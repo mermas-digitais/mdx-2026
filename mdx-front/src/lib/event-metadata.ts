@@ -82,6 +82,7 @@ export function eventStructuredData(event: StructuredEvent, banner: string | nul
   if (!startDate || !endDate || endDate < startDate) return null;
 
   const image = socialImage(event) ?? banner;
+  const text = (event.description.trim() || event.theme.trim() || "").replace(/\s+/g, " ");
   return {
     "@context": "https://schema.org",
     "@type": "Event",
@@ -89,6 +90,9 @@ export function eventStructuredData(event: StructuredEvent, banner: string | nul
     url: eventUrl(event),
     startDate,
     endDate,
+    eventStatus: "https://schema.org/EventScheduled",
+    eventAttendanceMode: "https://schema.org/OfflineEventAttendanceMode",
+    ...(text ? { description: truncate(text, 500) } : {}),
     ...(image ? { image } : {}),
     location: {
       "@type": "Place",
