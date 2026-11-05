@@ -47,7 +47,6 @@ export function SteppedRegistration({
   const email = defaultEmail;
   const [cpf, setCpf] = useState(() => formatCpf(accountCpf));
   const [phone, setPhone] = useState("");
-  const [institution, setInstitution] = useState("");
   const category = "VISITOR" as const;
   const [answers, setAnswers] = useState<Record<string, string | boolean | string[]>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -73,7 +72,7 @@ export function SteppedRegistration({
       email,
       cpf,
       phone,
-      institution,
+      institution: "",
       category,
       answers: Object.fromEntries(
         visible.map((field) => {
@@ -96,7 +95,7 @@ export function SteppedRegistration({
     const found = issues();
     const keys =
       current === "voce"
-        ? ["name", "email", "cpf", "phone", "institution"]
+        ? ["name", "email", "cpf", "phone"]
         : current === "perguntas"
           ? visible.map((field) => `answers.${field.id}`)
           : [];
@@ -123,7 +122,7 @@ export function SteppedRegistration({
     const found = issues();
     if (Object.keys(found).length > 0) {
       setErrors(found);
-      if (found.name || found.email || found.cpf || found.phone || found.institution) setStep(0);
+      if (found.name || found.email || found.cpf || found.phone) setStep(0);
       else if (Object.keys(found).some((key) => key.startsWith("answers."))) {
         const perguntas = stages.indexOf("perguntas");
         if (perguntas >= 0) setStep(perguntas);
@@ -219,9 +218,6 @@ export function SteppedRegistration({
           <Field label={fixedFields[3].label} htmlFor="reg-phone" error={errors.phone} required>
             <PhoneField id="reg-phone" value={phone} onChange={setPhone} invalid={Boolean(errors.phone)} />
           </Field>
-          <Field label={fixedFields[4].label} htmlFor="reg-institution" error={errors.institution}>
-            <Input id="reg-institution" className={inscriptionInputClass} value={institution} onChange={(item) => setInstitution(item.target.value)} aria-invalid={errors.institution ? true : undefined} />
-          </Field>
         </fieldset>
       ) : null}
 
@@ -246,7 +242,6 @@ export function SteppedRegistration({
             <Review label="E-mail" value={email} />
             <Review label="CPF" value={cpf} />
             <Review label="Telefone" value={phone} />
-            <Review label="Instituição" value={institution || "—"} />
             {visible.map((field) => (
               <Review key={field.id} label={field.label} value={showAnswer(field, answers[field.id])} />
             ))}

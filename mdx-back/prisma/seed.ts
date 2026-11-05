@@ -317,26 +317,7 @@ async function main() {
         }),
       ]);
 
-      const [schoolField, gradeField, accessField] = await Promise.all([
-        tx.formField.create({
-          data: {
-            eventId: event.id,
-            label: 'Escola',
-            type: FieldType.TEXT,
-            required: true,
-            displayOrder: 1,
-          },
-        }),
-        tx.formField.create({
-          data: {
-            eventId: event.id,
-            label: 'Série',
-            type: FieldType.SELECT,
-            required: true,
-            options: ['1º ano', '2º ano', '3º ano', 'Técnico', 'Não estudo'],
-            displayOrder: 2,
-          },
-        }),
+      const [accessField] = await Promise.all([
         tx.formField.create({
           data: {
             eventId: event.id,
@@ -357,8 +338,6 @@ async function main() {
               passportCode: person.code,
               category: person.category,
               answers: {
-                [schoolField.id]: person.school,
-                [gradeField.id]: person.grade,
                 [accessField.id]: person.accessibility,
               },
               checkedInAt: index < 4 ? at(24, 8, 15 + index) : null,
