@@ -102,6 +102,7 @@ export function eventStructuredData(event: StructuredEvent, banner: string | nul
     organizer: {
       "@type": "Organization",
       name: "Mermãs Digitais",
+      url: "https://mermasdigitais.com.br/",
     },
   };
 }
