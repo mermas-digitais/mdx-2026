@@ -19,3 +19,11 @@ test('não redireciona o evento nem o healthcheck', async () => {
     assert.equal(response.headers.get('location'), null);
   }
 });
+
+test('redireciona o host antigo para o oficial preservando caminho e campanha', async () => {
+  const response = await unstable_getResponseFromNextConfig({
+    url: 'https://mdx26.fabitz.com.br/e/mdx-2026?utm_source=antigo', nextConfig,
+  });
+  assert.equal(response.status, 308);
+  assert.equal(response.headers.get('location'), 'https://mdx26.mermasdigitais.com.br/e/mdx-2026?utm_source=antigo');
+});
