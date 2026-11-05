@@ -83,6 +83,8 @@ export function eventStructuredData(event: StructuredEvent, banner: string | nul
 
   const image = socialImage(event) ?? banner;
   const text = (event.description.trim() || event.theme.trim() || "").replace(/\s+/g, " ");
+  // Gratuidade confirmada pela organização para a MDX 2026; trocar por campo da API quando existir.
+  const free = event.slug === "mdx-2026";
   return {
     "@context": "https://schema.org",
     "@type": "Event",
@@ -94,6 +96,17 @@ export function eventStructuredData(event: StructuredEvent, banner: string | nul
     eventAttendanceMode: "https://schema.org/OfflineEventAttendanceMode",
     ...(text ? { description: truncate(text, 500) } : {}),
     ...(image ? { image } : {}),
+    ...(free
+      ? {
+          isAccessibleForFree: true,
+          offers: {
+            "@type": "Offer",
+            price: 0,
+            priceCurrency: "BRL",
+            url: eventUrl(event),
+          },
+        }
+      : {}),
     location: {
       "@type": "Place",
       name: event.place,
