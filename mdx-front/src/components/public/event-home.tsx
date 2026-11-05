@@ -2,7 +2,6 @@ import Link from "next/link";
 import { Erica_One, Paytone_One } from "next/font/google";
 import { Countdown } from "@/components/public/countdown";
 import type { PublicEvent } from "@/lib/api";
-import { formatFortalezaDay, fortalezaDay } from "@/server/event-schema";
 
 const paytone = Paytone_One({
   weight: "400",
@@ -72,8 +71,6 @@ function NotebookScene() {
 
 export function EventHome({ event }: { event: PublicEvent }) {
   const signupHref = `/e/${event.slug}/inscricao`;
-  const announcements = event.announcements ?? [];
-  const rules = event.rules ?? [];
 
   return (
     <main className="overflow-x-hidden bg-[#FFF7FC] text-[#330043]">
@@ -295,28 +292,6 @@ export function EventHome({ event }: { event: PublicEvent }) {
           </Link>
         </div>
       </section>
-
-      {rules.length > 0 || announcements.length > 0 ? (
-        <section aria-label="Regulamentos e comunicados" className="px-4 py-10">
-          <div className="mx-auto grid max-w-6xl gap-4 md:grid-cols-2">
-            {rules.map((rule) => (
-              <details key={rule.id} className="rounded-3xl bg-white p-4 shadow-[0_8px_0_#F5D0FE]">
-                <summary className="cursor-pointer font-heading text-xl">Regulamento: {rule.title}</summary>
-                <p className="mt-3 whitespace-pre-wrap">{rule.rules}</p>
-              </details>
-            ))}
-            {announcements.map((item) => (
-              <details key={item.id} className="rounded-3xl bg-white p-4 shadow-[0_8px_0_#F5D0FE]">
-                <summary className="cursor-pointer font-heading text-xl">{item.title}</summary>
-                <p className="mt-2 text-sm font-semibold text-[#6D28D9]">
-                  <time dateTime={item.publishedAt}>{formatFortalezaDay(fortalezaDay(item.publishedAt))}</time>
-                </p>
-                <p className="mt-2 whitespace-pre-wrap">{item.body}</p>
-              </details>
-            ))}
-          </div>
-        </section>
-      ) : null}
     </main>
   );
 }
