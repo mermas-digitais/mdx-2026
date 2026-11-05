@@ -10,8 +10,16 @@ async function bootstrap() {
   app.enableShutdownHooks();
 
   app.setGlobalPrefix('api');
+  const frontend = config.getOrThrow<string>('FRONTEND_URL');
+  const origins = new Set([frontend]);
+  if (config.get('NODE_ENV') !== 'production') {
+    origins.add('http://localhost:3000');
+    origins.add('http://127.0.0.1:3000');
+    origins.add('http://localhost:3002');
+    origins.add('http://127.0.0.1:3002');
+  }
   app.enableCors({
-    origin: config.getOrThrow<string>('FRONTEND_URL'),
+    origin: [...origins],
     credentials: true,
   });
   app.useGlobalPipes(

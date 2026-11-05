@@ -79,11 +79,11 @@ function loginCodeHtml(code: string, withLogo: boolean): string {
 
   return `<!DOCTYPE html>
 <html lang="pt-BR">
-<body style="margin:0;padding:0;background:#330043;">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#330043;">
+<body style="margin:0;padding:0;background:#ffffff;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;">
     <tr>
       <td align="center" style="padding:28px 16px;">
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#ffffff;border-radius:28px;overflow:hidden;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#ffffff;border:1px solid #F3E8FF;border-radius:28px;overflow:hidden;">
           <tr>
             <td style="height:8px;background:#FF4A97;font-size:0;line-height:0;">&nbsp;</td>
           </tr>
@@ -115,7 +115,7 @@ function loginCodeHtml(code: string, withLogo: boolean): string {
           </tr>
           <tr>
             <td align="center" style="padding:20px 36px 36px;">
-              <p style="margin:0;font-family:'Trebuchet MS',Verdana,sans-serif;font-size:15px;line-height:1.5;color:#6E6278;">Ele vale por 10 minutos. Se você não pediu este código, pode ignorar este e-mail.</p>
+              <p style="margin:0;font-family:'Trebuchet MS',Verdana,sans-serif;font-size:15px;line-height:1.5;color:#330043;">Ele vale por 10 minutos. Se você não pediu este código, pode ignorar este e-mail.</p>
             </td>
           </tr>
         </table>

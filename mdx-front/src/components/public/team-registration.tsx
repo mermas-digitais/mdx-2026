@@ -220,7 +220,18 @@ export function TeamRegistration({
         </ul>
         <label className="flex items-start gap-3 text-[#330043]">
           <input type="checkbox" className="mt-1 size-5 accent-[#FF4A97]" checked={rules} onChange={(item) => setRules(item.target.checked)} />
-          <span>Concordo que li e aceito os termos dos regulamentos de jogos e robótica.</span>
+          <span>
+            Concordo que li e aceito os termos do{" "}
+            <a
+              href="/marca/regulamento-robotica.pdf"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-semibold text-[#2563EB] underline"
+            >
+              regulamento
+            </a>{" "}
+            de robótica.
+          </span>
         </label>
         {errors.rulesAccepted ? <p className="text-sm font-semibold text-[#BE185D]">{errors.rulesAccepted}</p> : null}
         <GradientButton type="submit">Enviar</GradientButton>
@@ -271,7 +282,6 @@ export function TeamRegistration({
           <div className="flex flex-col gap-2">
             <p className="font-semibold">Modalidades*:</p>
             {modalities.map((modality) => {
-              const full = modality.confirmed >= modality.slotLimit;
               const checked = selected.includes(modality.id);
               return (
                 <label key={modality.id} className="flex min-h-14 items-center gap-3 rounded-2xl border-4 border-[#330043] bg-white px-3">
@@ -287,14 +297,7 @@ export function TeamRegistration({
                       );
                     }}
                   />
-                  <span>
-                    <span className="block font-heading text-xl">{modality.name}</span>
-                    <span className="text-sm text-[#4C1D95]">
-                      {full
-                        ? `Lista de espera · ${modality.waitlist} equipe${modality.waitlist === 1 ? "" : "s"} na frente`
-                        : `${modality.confirmed} de ${modality.slotLimit} vagas`}
-                    </span>
-                  </span>
+                  <span className="font-heading text-xl">{modality.name}</span>
                 </label>
               );
             })}

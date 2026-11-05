@@ -30,7 +30,7 @@ export default function RegistrationPage({
   return (
     <Suspense
       fallback={
-        <main className="mx-auto w-full max-w-3xl px-4 py-10">
+        <main className="mx-auto w-full max-w-3xl px-4 py-10 font-heading">
           <p>Carregando a inscrição…</p>
         </main>
       }
@@ -50,7 +50,7 @@ async function RegistrationBody({
   if (event === null) notFound();
   if (!event) {
     return (
-      <main className="mx-auto w-full max-w-3xl px-4 py-10">
+      <main className="mx-auto w-full max-w-3xl px-4 py-10 font-heading">
         <p>Não foi possível carregar o evento.</p>
       </main>
     );
@@ -64,7 +64,7 @@ async function RegistrationBody({
 
   return (
     <main
-      className="flex min-h-[calc(100dvh-4.5rem)] flex-col bg-[#FF4A97] bg-cover bg-center text-[#330043]"
+      className="flex min-h-[calc(100dvh-4.5rem)] flex-col bg-[#FF4A97] bg-cover bg-center font-heading text-[#330043]"
       style={{ backgroundImage: "url(/marca/banner-lp-oficial.svg)" }}
     >
       <div className="mx-auto my-auto grid w-full max-w-6xl items-center gap-5 px-4 py-6 md:grid-cols-[minmax(0,1fr)_minmax(0,32rem)] md:gap-8 md:py-10">

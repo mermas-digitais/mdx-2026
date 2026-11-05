@@ -103,10 +103,14 @@ export function EventHome({ event }: { event: PublicEvent }) {
       <section
         id="o-que-e"
         aria-labelledby="o-que-e-titulo"
-        className="scroll-mt-28 bg-white bg-[length:1437px_639px] bg-repeat px-4 py-14 sm:py-20"
-        style={{ backgroundImage: "url(/marca/quadriculado.svg)" }}
+        className="relative scroll-mt-28 overflow-hidden bg-white px-4 py-14 sm:py-20"
       >
-        <div className="mx-auto grid max-w-6xl items-center gap-10 md:grid-cols-[1.15fr_0.85fr]">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 bg-[length:1437px_639px] bg-repeat opacity-20"
+          style={{ backgroundImage: "url(/marca/quadriculado.svg)" }}
+        />
+        <div className="relative mx-auto grid max-w-6xl items-center gap-10 md:grid-cols-[1.15fr_0.85fr]">
           <div>
             <h2 id="o-que-e-titulo">
               <img src="/marca/o-que-e-mdx.svg" alt="O que é o MDX STEAM?" className="w-4/5 max-w-lg sm:w-full" />
@@ -155,17 +159,20 @@ export function EventHome({ event }: { event: PublicEvent }) {
         </div>
       </section>
 
-      <section id="quem" aria-labelledby="quem-titulo" className="scroll-mt-28 bg-[#FF4A97] pb-8 md:pb-0">
+      <section id="quem" aria-labelledby="quem-titulo" className="scroll-mt-28 bg-[#FF4A97]">
         <div className="relative">
           <img
             src="/marca/carro-e-tabela.svg"
             alt="Gamificações, sorteios, conhecer os stands e participar das atividades interativas valem para o público geral e para a competição de robótica. Competir no desafio de robótica vale só para a competição."
             className="block w-full"
           />
-          <h2 id="quem-titulo" className="absolute top-[3%] left-[3%] w-[42%] md:top-[4%] md:w-[30%]">
+          <h2 id="quem-titulo" className="absolute top-[3%] left-[3%] w-[42%] xl:top-[4%] xl:w-[30%]">
             <img src="/marca/quem-pode-participar.svg" alt="Quem pode participar?" className="h-auto w-full" />
           </h2>
-          <div className="absolute top-[8%] right-[4%] hidden h-[10.5%] w-[52%] items-center gap-4 rounded-3xl bg-white px-5 text-[#330043] shadow-[0_8px_0_#BE185D] md:flex">
+          <p className="absolute top-[3%] left-[48%] flex h-[27%] w-[49%] items-center pr-[3%] text-left text-[clamp(0.68rem,2.7vw,0.8rem)] leading-snug font-semibold text-white xl:hidden">
+            Atenção: para competir é preciso ser menina e estar matriculada em alguma escola, o professor orientador da equipe não precisa ser mulher.
+          </p>
+          <div className="absolute top-[8%] right-[4%] hidden h-[10.5%] w-[52%] items-center gap-4 rounded-3xl bg-white px-5 text-[#330043] shadow-[0_8px_0_#BE185D] xl:flex">
             <span className="block h-24 w-32 shrink-0 overflow-hidden" aria-hidden="true">
               <img src="/marca/logo-mermas.svg" alt="" className="h-24 w-auto max-w-none" />
             </span>
@@ -173,14 +180,6 @@ export function EventHome({ event }: { event: PublicEvent }) {
               Atenção: para competir é preciso ser menina e estar matriculada em alguma escola, o professor orientador da equipe não precisa ser mulher.
             </p>
           </div>
-        </div>
-        <div className="mx-4 mt-6 flex items-center gap-3 rounded-2xl bg-white px-3 py-3 text-[#330043] shadow-[0_6px_0_#BE185D] md:hidden">
-          <span className="block h-12 w-16 shrink-0 overflow-hidden" aria-hidden="true">
-            <img src="/marca/logo-mermas.svg" alt="" className="h-12 w-auto max-w-none" />
-          </span>
-          <p className="text-sm leading-snug font-bold">
-            Atenção: para competir é preciso ser menina e estar matriculada em alguma escola, o professor orientador da equipe não precisa ser mulher.
-          </p>
         </div>
       </section>
 
@@ -192,9 +191,9 @@ export function EventHome({ event }: { event: PublicEvent }) {
         <h2 id="dentro-titulo" className="w-4/5 max-w-xs md:w-80">
           <img src="/marca/o-que-vai-acontecer.svg" alt="O que vai acontecer?" className="h-auto w-full" />
         </h2>
-        <ul className="mx-auto mt-10 flex w-full max-w-6xl flex-col items-center gap-16 md:mt-10 md:flex-row md:items-end md:justify-between md:gap-16">
+        <ul className="mx-auto mt-10 flex w-full max-w-6xl flex-col items-center gap-8 md:mt-10 md:flex-row md:items-end md:justify-between md:gap-16">
           {eventCards.map((card) => (
-            <li key={card.src} className="mdx-float w-[min(16rem,70%)] md:w-auto md:min-w-0 md:flex-1" style={{ animationDelay: card.delay }}>
+            <li key={card.src} className="mdx-float w-[min(9rem,42%)] md:w-auto md:min-w-0 md:flex-1" style={{ animationDelay: card.delay }}>
               <img
                 src={card.src}
                 alt={card.alt}
@@ -240,6 +239,60 @@ export function EventHome({ event }: { event: PublicEvent }) {
             alt="IFMA Imperatriz. Avenida Newton Bello, S/N, Vila Maria, Imperatriz, MA, CEP 65906-335. Campus Imperatriz."
             className="h-auto w-full -rotate-2 md:w-[52.3%] md:rotate-0"
           />
+        </div>
+      </section>
+
+      <section id="regulamento" aria-labelledby="regulamento-titulo" className="relative scroll-mt-28 overflow-hidden bg-white px-4 py-12 md:px-8 md:py-16">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 bg-[length:1437px_639px] bg-repeat opacity-20"
+          style={{ backgroundImage: "url(/marca/quadriculado.svg)" }}
+        />
+        <div className="relative mx-auto max-w-6xl">
+          <h2 id="regulamento-titulo" className="w-4/5 max-w-sm md:w-[48%] md:max-w-none">
+            <img src="/marca/confira-regulamento.svg" alt="Confira o regulamento da competição" className="h-auto w-full" />
+          </h2>
+          <div className="mt-6 flex flex-col items-center gap-8 md:mt-2 md:flex-row md:items-center md:gap-8">
+            <img
+              src="/marca/desafio-robotica.svg"
+              alt="Desafio de robótica"
+              className="h-auto w-full md:w-[54%]"
+            />
+            <div className="relative w-full overflow-hidden rounded-[1.75rem] border border-[#E7E5E4] bg-white shadow-[0_10px_30px_rgb(51_0_67_/_0.06)] md:w-[46%]">
+              <img
+                src="/marca/regulamento-robotica-preview.png"
+                alt="Capa do regulamento oficial de robótica do MDX STEAM"
+                className="block h-auto w-full"
+              />
+              <a
+                href="/marca/regulamento-robotica.pdf"
+                download="Regulamento Oficial Robótica MDX Steam.pdf"
+                className={`${paytone.className} absolute bottom-6 left-1/2 z-10 inline-flex -translate-x-1/2 items-center rounded-full bg-[#330043] px-8 py-3 text-sm tracking-wide text-white shadow-[0_8px_0_rgb(51_0_67_/_0.18)] transition-transform duration-300 hover:scale-105 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#330043] md:bottom-8 md:px-10 md:py-3.5 md:text-base`}
+              >
+                BAIXAR PDF
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section aria-label="Inscrição" className="relative overflow-hidden bg-[#330043] px-4 py-12 text-white sm:py-16">
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 bg-cover bg-center opacity-55"
+          style={{ backgroundImage: "url(/marca/estrelado.svg)" }}
+        />
+        <div className="relative mx-auto flex max-w-6xl flex-col items-center">
+          <p className={`${erica.className} -rotate-2 text-center leading-[0.95] tracking-wide text-[clamp(1.85rem,7.4vw,2.35rem)] md:text-[clamp(1.65rem,2.3vw,2.45rem)]`}>
+            <span className="block whitespace-nowrap">MERMÃ,</span>
+            <span className="block whitespace-nowrap">VEM SE INSCREVER!</span>
+          </p>
+          <Link
+            href={signupHref}
+            className="mdx-glow-btn mt-8 inline-flex h-14 items-center rounded-full px-8 font-heading text-xl font-bold text-[#ffffff] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white"
+          >
+            quero participar
+          </Link>
         </div>
       </section>
 

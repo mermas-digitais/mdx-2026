@@ -388,6 +388,29 @@
   animation: email-ok-rise 0.5s ease 0.9s both;
 }
 
+.mdx-confetti {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.mdx-confetti span {
+  position: absolute;
+  top: -16px;
+  width: 8px;
+  height: 14px;
+  border-radius: 2px;
+  animation: mdx-confetti 2.6s ease-in forwards;
+}
+
+@keyframes mdx-confetti {
+  to {
+    transform: translateY(28rem) rotate(420deg);
+    opacity: 0;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .mdx-marquee {
     width: auto;
@@ -410,8 +433,13 @@
   .email-ok-circle,
   .email-ok-check,
   .email-ok-spark,
-  .email-ok-copy {
+  .email-ok-copy,
+  .mdx-confetti span {
     animation: none;
+  }
+
+  .mdx-confetti {
+    display: none;
   }
 
   .email-ok-circle,

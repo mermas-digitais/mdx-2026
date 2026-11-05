@@ -3,12 +3,60 @@
 import { signIn } from "next-auth/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { EmailGate, type VerifiedEmail } from "@/components/public/email-gate";
 import { SteppedRegistration } from "@/components/public/stepped-registration";
 import { TeamRegistration } from "@/components/public/team-registration";
 import { desistirEquipe, type RoboticsTeam } from "@/server/events";
 import type { FormFieldConfig } from "@/server/form-schema";
+
+const VERIFIED_STORAGE = "mdx-email-verificado";
+const VERIFIED_FOR_MS = 2 * 60 * 60 * 1000;
+
+const verificationListeners = new Set<() => void>();
+
+function subscribeVerification(listener: () => void) {
+  verificationListeners.add(listener);
+  return () => verificationListeners.delete(listener);
+}
+
+function notifyVerification() {
+  for (const listener of verificationListeners) listener();
+}
+
+function snapshotVerification(): string | null {
+  try {
+    const raw = window.localStorage.getItem(VERIFIED_STORAGE);
+    if (!raw) return null;
+    const stored = JSON.parse(raw) as { email?: string; expiresAt?: number };
+    if (!stored.email || typeof stored.expiresAt !== "number" || stored.expiresAt <= Date.now()) {
+      window.localStorage.removeItem(VERIFIED_STORAGE);
+      return null;
+    }
+    return raw;
+  } catch {
+    return null;
+  }
+}
+
+function storeVerification(verified: VerifiedEmail) {
+  window.localStorage.setItem(
+    VERIFIED_STORAGE,
+    JSON.stringify({ ...verified, expiresAt: Date.now() + VERIFIED_FOR_MS }),
+  );
+  notifyVerification();
+}
+
+function parseVerification(raw: string | null): VerifiedEmail | null {
+  if (!raw) return null;
+  try {
+    const stored = JSON.parse(raw) as VerifiedEmail;
+    if (!stored.email) return null;
+    return { email: stored.email, name: stored.name ?? "", proof: stored.proof };
+  } catch {
+    return null;
+  }
+}
 
 type Modality = {
   id: string;
@@ -47,7 +95,12 @@ export function InscriptionFlow({
   const [withdrawing, setWithdrawing] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const router = useRouter();
-  const [verified, setVerified] = useState<VerifiedEmail | null>(null);
+  const storedVerification = useSyncExternalStore(subscribeVerification, snapshotVerification, () => null);
+  const verified = parseVerification(storedVerification);
+
+  function setVerified(next: VerifiedEmail) {
+    storeVerification(next);
+  }
   const sameAccount = verified?.email === defaultEmail;
 
   function leaveForm() {
@@ -106,7 +159,7 @@ export function InscriptionFlow({
     return (
       <div className="flex flex-col gap-4">
         <QuietBack href={`/e/${slug}`} />
-        <EmailGate initialEmail={defaultEmail} onVerified={setVerified} />
+        <EmailGate onVerified={setVerified} />
       </div>
     );
   }

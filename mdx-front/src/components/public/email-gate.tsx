@@ -41,53 +41,63 @@ export function EmailGate({
     event.preventDefault();
     setPending(true);
     setError(null);
-    const response = await fetch(`${apiUrl()}/api/auth/otp/start`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email }),
-    });
-    const body = (await response.json().catch(() => null)) as { message?: unknown; devCode?: string } | null;
-    setPending(false);
-    if (!response.ok) {
-      setError(typeof body?.message === "string" ? body.message : "Não foi possível enviar o código.");
-      return;
+    try {
+      const response = await fetch(`${apiUrl()}/api/auth/otp/start`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const body = (await response.json().catch(() => null)) as { message?: unknown; devCode?: string } | null;
+      setPending(false);
+      if (!response.ok) {
+        setError(typeof body?.message === "string" ? body.message : "Não foi possível enviar o código.");
+        return;
+      }
+      setDevCode(typeof body?.devCode === "string" ? body.devCode : null);
+      setStep("code");
+    } catch {
+      setPending(false);
+      setError("Não foi possível falar com o servidor. Tente de novo.");
     }
-    setDevCode(typeof body?.devCode === "string" ? body.devCode : null);
-    setStep("code");
   }
 
   async function confirm(event: React.FormEvent) {
     event.preventDefault();
     setPending(true);
     setError(null);
-    const response = await fetch(`${apiUrl()}/api/auth/otp/confirm`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, code }),
-    });
-    const body = (await response.json().catch(() => null)) as {
-      message?: unknown;
-      token?: string;
-      proof?: string;
-      user?: { name?: string; email?: string };
-    } | null;
-    if (!response.ok || !body) {
-      setPending(false);
-      setError(typeof body?.message === "string" ? body.message : "Código incorreto ou vencido.");
-      return;
-    }
-    if (body.token) {
-      const signed = await signIn("credentials", { apiToken: body.token, redirect: false });
-      setPending(false);
-      if (signed?.error) {
-        setError("Não foi possível entrar com esse código.");
+    try {
+      const response = await fetch(`${apiUrl()}/api/auth/otp/confirm`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, code }),
+      });
+      const body = (await response.json().catch(() => null)) as {
+        message?: unknown;
+        token?: string;
+        proof?: string;
+        user?: { name?: string; email?: string };
+      } | null;
+      if (!response.ok || !body) {
+        setPending(false);
+        setError(typeof body?.message === "string" ? body.message : "Código incorreto ou vencido.");
         return;
       }
-      setReady({ email: body.user?.email ?? email, name: body.user?.name ?? "" });
-      return;
+      if (body.token) {
+        const signed = await signIn("credentials", { apiToken: body.token, redirect: false });
+        setPending(false);
+        if (signed?.error) {
+          setError("Não foi possível entrar com esse código.");
+          return;
+        }
+        setReady({ email: body.user?.email ?? email, name: body.user?.name ?? "" });
+        return;
+      }
+      setPending(false);
+      setReady({ email, name: "", proof: body.proof });
+    } catch {
+      setPending(false);
+      setError("Não foi possível falar com o servidor. Tente de novo.");
     }
-    setPending(false);
-    setReady({ email, name: "", proof: body.proof });
   }
 
   if (ready) {
@@ -134,7 +144,7 @@ export function EmailGate({
           required
           value={email}
           onChange={(item) => setEmail(item.target.value)}
-          autoComplete="email"
+          autoComplete="off"
           placeholder="seu@email.com"
           className={inscriptionInputClass}
         />

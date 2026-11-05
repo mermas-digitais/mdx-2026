@@ -40,7 +40,7 @@ export class TokenService {
       .setProtectedHeader({ alg: 'HS256' })
       .setSubject(email)
       .setIssuedAt()
-      .setExpirationTime('30m')
+      .setExpirationTime('2h')
       .sign(this.secret);
   }
 

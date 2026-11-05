@@ -176,11 +176,24 @@ export function SteppedRegistration({
 
   if (passport) {
     return (
-      <div role="status" className="rounded-3xl border-4 border-[#330043] bg-[#FFCD34] p-6 text-[#330043] shadow-[6px_6px_0_#330043]">
-        <p className="font-heading text-3xl">Inscrição confirmada</p>
-        <p className="mt-3 text-lg">
-          Seu código é <strong className="font-heading text-2xl">{passport}</strong>. Guarda ele para o credenciamento.
-        </p>
+      <div role="status" className="relative overflow-hidden rounded-3xl bg-[#FFF6FB] px-6 py-10 text-center text-[#330043]">
+        <Confetti />
+        <div className="relative">
+          <p className="font-heading text-3xl">Inscrição confirmada</p>
+          <p className="mt-3 text-lg">Desejamos um bom evento!</p>
+          <button
+            type="button"
+            disabled
+            aria-disabled="true"
+            className="mt-8 inline-flex cursor-not-allowed items-center gap-2 rounded-full bg-[#E7E5E4] px-8 py-3 text-base font-semibold text-[#A8A29E]"
+          >
+            <svg viewBox="0 0 24 24" className="size-4" aria-hidden="true">
+              <path fill="currentColor" d="M12 2a5 5 0 0 0-5 5v3H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2h-1V7a5 5 0 0 0-5-5zm-3 8V7a3 3 0 1 1 6 0v3H9z" />
+            </svg>
+            Acessar passaporte
+          </button>
+          <p className="mt-3 text-sm text-[#8B7C99]">Ainda não foi liberado. Contamos mais no dia do evento.</p>
+        </div>
       </div>
     );
   }
@@ -271,6 +284,30 @@ export function SteppedRegistration({
           </button>
         ) : null}
       </div>
+    </div>
+  );
+}
+
+const CONFETTI = ["#FF4A97", "#FFCD34", "#9B6DFF", "#FF7A3C", "#6D28D9", "#FFB347"];
+
+function Confetti() {
+  return (
+    <div className="mdx-confetti" aria-hidden="true">
+      {CONFETTI.flatMap((color, colorIndex) =>
+        Array.from({ length: 5 }, (_, index) => {
+          const piece = colorIndex * 5 + index;
+          return (
+            <span
+              key={piece}
+              style={{
+                left: `${(piece * 17) % 100}%`,
+                background: color,
+                animationDelay: `${(piece % 8) * 0.12}s`,
+              }}
+            />
+          );
+        }),
+      )}
     </div>
   );
 }
