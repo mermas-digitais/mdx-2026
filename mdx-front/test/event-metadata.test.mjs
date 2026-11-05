@@ -1,6 +1,6 @@
 import { afterEach, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { eventMetadata } from '../src/lib/event-metadata.ts';
+import { eventMetadata, eventStructuredData } from '../src/lib/event-metadata.ts';
 import { readFile, stat } from 'node:fs/promises';
 import sharp from 'sharp';
 
@@ -19,7 +19,7 @@ test('compartilha MDX com arte dedicada, URL canônica e Twitter Card grande', (
   const meta = eventMetadata(event, 'https://api.example.com/old-banner.png');
   assert.equal(meta.alternates.canonical, 'https://mdx26.mermasdigitais.com.br/e/mdx-2026');
   assert.equal(meta.openGraph.url, meta.alternates.canonical);
-  assert.equal(meta.openGraph.title, 'MDX STEAM 2026');
+  assert.equal(meta.openGraph.title, 'MDX STEAM 2026 em Imperatriz');
   assert.equal(meta.description, 'Meninas na tecnologia. Inscrições abertas.');
   assert.deepEqual(meta.openGraph.images, [{
     url: 'https://mdx26.mermasdigitais.com.br/social/mdx-2026-og.jpg', width: 1200, height: 630,
@@ -28,6 +28,47 @@ test('compartilha MDX com arte dedicada, URL canônica e Twitter Card grande', (
   assert.equal(meta.twitter.card, 'summary_large_image');
   assert.deepEqual(meta.twitter.images, meta.openGraph.images);
   assert.equal(meta.robots.index, true);
+  assert.equal(meta.robots.googleBot['max-image-preview'], 'large');
+});
+
+test('limita descrição de busca sem cortar uma palavra ao meio', () => {
+  const meta = eventMetadata({ ...event, description: 'Tecnologia e criatividade para meninas em Imperatriz. '.repeat(8) }, null);
+  assert.ok(meta.description.length <= 160);
+  assert.ok(meta.description.endsWith('…'));
+  const lastWord = meta.description.slice(0, -1).split(' ').at(-1);
+  assert.ok(['Tecnologia', 'e', 'criatividade', 'para', 'meninas', 'em', 'Imperatriz.'].includes(lastWord));
+});
+
+const published = {
+  ...event, status: 'PUBLISHED', startsAt: '2026-11-24T11:00:00.000Z', endsAt: '2026-11-25T21:00:00.000Z',
+  place: 'IFMA Imperatriz', address: 'Campus Imperatriz — MA',
+};
+
+test('Event JSON-LD usa fatos do evento, sem inventar preços ou horários', () => {
+  process.env.AUTH_URL = 'https://mdx26.mermasdigitais.com.br';
+  const data = eventStructuredData(published, null);
+  assert.equal(data['@context'], 'https://schema.org');
+  assert.equal(data['@type'], 'Event');
+  assert.equal(data.url, 'https://mdx26.mermasdigitais.com.br/e/mdx-2026');
+  assert.equal(data.startDate, '2026-11-24');
+  assert.equal(data.endDate, '2026-11-25');
+  assert.equal(data.location.name, published.place);
+  assert.equal(data.location.address, published.address);
+  assert.equal(data.organizer.name, 'Mermãs Digitais');
+  assert.equal(data.image, 'https://mdx26.mermasdigitais.com.br/social/mdx-2026-og.jpg');
+  assert.equal(data.offers, undefined);
+  assert.equal(data.isAccessibleForFree, undefined);
+});
+
+test('não gera Event para prévia, rascunho, datas inválidas ou local incompleto', () => {
+  for (const patch of [{ preview: true }, { status: 'DRAFT' }, { startsAt: null }, { endsAt: 'inválida' }, { endsAt: '2020-01-01' }, { place: '' }, { address: '' }]) {
+    assert.equal(eventStructuredData({ ...published, ...patch }, null), null);
+  }
+});
+
+test('datas estruturadas respeitam o dia local do evento no Maranhão', () => {
+  const data = eventStructuredData({ ...published, startsAt: '2026-11-25T01:00:00.000Z' }, null);
+  assert.equal(data.startDate, '2026-11-24');
 });
 
 test('preserva imagem e título de outros eventos e não indexa prévia', () => {
