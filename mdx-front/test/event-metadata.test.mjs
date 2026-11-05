@@ -1,6 +1,8 @@
 import { afterEach, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { eventMetadata } from '../src/lib/event-metadata.ts';
+import { readFile, stat } from 'node:fs/promises';
+import sharp from 'sharp';
 
 const authUrl = process.env.AUTH_URL;
 afterEach(() => {
@@ -43,4 +45,14 @@ test('usa domínio público sem AUTH_URL e fallback de descrição, sem imagem i
   assert.equal(meta.description, 'Página do evento MDX 2026.');
   assert.equal(meta.openGraph.images, undefined);
   assert.equal(meta.twitter.images, undefined);
+});
+
+test('arte social tem dimensões OG, JPEG sRGB e menos de 200 KB', async () => {
+  const file = new URL('../public/social/mdx-2026-og.jpg', import.meta.url);
+  const meta = await sharp(await readFile(file)).metadata();
+  assert.equal(meta.width, 1200);
+  assert.equal(meta.height, 630);
+  assert.equal(meta.format, 'jpeg');
+  assert.equal(meta.space, 'srgb');
+  assert.ok((await stat(file)).size < 200_000);
 });
