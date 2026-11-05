@@ -49,3 +49,11 @@ npm run db:seed
 `db:migrate` cria e aplica a migration no Postgres local. `db:reset` recria o banco do zero, aplica as migrations e roda o seed. O seed inclui o evento MDX 2026 e usuários de exemplo com a senha `mdx-2026`.
 
 Não rode o seed de exemplo nem `db:reset` em produção. Uploads agora usam S3; arquivos locais antigos precisam ser copiados ao bucket antes da troca, conforme o guia de deploy.
+
+## Compartilhamento do evento
+
+`/e/mdx-2026` usa a arte dedicada `mdx-front/public/social/mdx-2026-og.jpg`: JPEG sRGB, 1200 × 630 px, aproximadamente 130 KB, derivado da arte de inscrições até 20 de novembro. O recorte central preserva os textos e não altera o banner exibido na página.
+
+Metadados incluem título, descrição, URL canônica, Open Graph (imagem com dimensões/alt) e Twitter Card `summary_large_image`. URLs absolutas usam a origem de `AUTH_URL`, com fallback para `https://mdx26.fabitz.com.br`. Outros eventos preservam seus próprios banners; prévias continuam `noindex`.
+
+Após o deploy, conferir o HTML com User-Agent `facebookexternalhit`/`Twitterbot` e o acesso público à imagem. Next entrega metadados no `<head>` para esses robôs sem exigir JavaScript. WhatsApp/Meta/LinkedIn podem manter cache da prévia; solicitar nova leitura nos depuradores da plataforma quando necessário. Para mudar a arte, publicar novo nome de arquivo e atualizar o metadado para evitar cache antigo. Não deixar a chamada de inscrições abertas depois do prazo sem atualizar a arte.

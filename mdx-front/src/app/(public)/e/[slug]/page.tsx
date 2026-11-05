@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { bannerSrc } from "@/components/admin/event-format";
 import { EventHome } from "@/components/public/event-home";
 import { loadEventPage } from "@/server/public-event";
+import { eventMetadata } from "@/lib/event-metadata";
 
 export async function generateMetadata({
   params,
@@ -15,20 +16,7 @@ export async function generateMetadata({
   if (!event) {
     return { title: "Evento", robots: { index: false, follow: false } };
   }
-  const description = shareText(event.description, event.theme, event.title);
-  const image = bannerSrc(event.banner);
-  return {
-    title: event.title,
-    description,
-    robots: event.preview ? { index: false, follow: false } : { index: true, follow: true },
-    openGraph: {
-      title: event.title,
-      description,
-      type: "website",
-      locale: "pt_BR",
-      images: image ? [{ url: image, alt: `Banner do evento ${event.title}` }] : undefined,
-    },
-  };
+  return eventMetadata(event, bannerSrc(event.banner));
 }
 
 export default function PublicEventPage({
@@ -66,10 +54,4 @@ async function PublicEventBody({
   }
 
   return <EventHome event={event} />;
-}
-
-function shareText(description: string, theme: string, title: string): string {
-  const source = description.trim() || theme.trim() || `Página do evento ${title}.`;
-  const flat = source.replace(/\s+/g, " ");
-  return flat.length > 180 ? `${flat.slice(0, 177)}…` : flat;
 }
