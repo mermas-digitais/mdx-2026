@@ -151,7 +151,41 @@ export function EventHome({ event }: { event: PublicEvent }) {
             <p className="rounded-full border border-white px-5 py-2 text-center font-heading text-sm font-bold md:text-xl">
               As inscrições se encerram em:
             </p>
-            <Countdown startsAt={event.startsAt} endsAt={event.endsAt} tone="glass" />
+            <Countdown deadline="2026-11-21T03:00:00.000Z" tone="glass" />
+          </div>
+        </div>
+      </section>
+
+      <section id="regulamento" aria-labelledby="regulamento-titulo" className="relative scroll-mt-28 overflow-hidden bg-white px-4 py-12 md:px-8 md:py-16">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 bg-[length:1437px_639px] bg-repeat opacity-20"
+          style={{ backgroundImage: "url(/marca/quadriculado.svg)" }}
+        />
+        <div className="relative mx-auto max-w-6xl">
+          <h2 id="regulamento-titulo" className="w-4/5 max-w-sm md:w-[48%] md:max-w-none">
+            <img src="/marca/confira-regulamento.svg" alt="Confira o regulamento da competição" className="h-auto w-full" />
+          </h2>
+          <div className="mt-6 flex flex-col items-center gap-8 md:mt-2 md:flex-row md:items-center md:gap-8">
+            <img
+              src="/marca/desafio-robotica.svg"
+              alt="Desafio de robótica"
+              className="h-auto w-full md:w-[54%]"
+            />
+            <div className="relative w-full overflow-hidden rounded-[1.75rem] border border-[#E7E5E4] bg-white shadow-[0_10px_30px_rgb(51_0_67_/_0.06)] md:w-[46%]">
+              <img
+                src="/marca/regulamento-robotica-preview.png"
+                alt="Capa do regulamento oficial de robótica do MDX STEAM"
+                className="block h-auto w-full"
+              />
+              <a
+                href="/marca/regulamento-robotica.pdf"
+                download="Regulamento Oficial Robótica MDX Steam.pdf"
+                className={`${paytone.className} absolute bottom-6 left-1/2 z-10 inline-flex -translate-x-1/2 items-center rounded-full bg-[#330043] px-8 py-3 text-sm tracking-wide text-white shadow-[0_8px_0_rgb(51_0_67_/_0.18)] transition-transform duration-300 hover:scale-105 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#330043] md:bottom-8 md:px-10 md:py-3.5 md:text-base`}
+              >
+                BAIXAR PDF
+              </a>
+            </div>
           </div>
         </div>
       </section>
@@ -236,40 +270,6 @@ export function EventHome({ event }: { event: PublicEvent }) {
             alt="IFMA Imperatriz. Avenida Newton Bello, S/N, Vila Maria, Imperatriz, MA, CEP 65906-335. Campus Imperatriz."
             className="h-auto w-full -rotate-2 md:w-[52.3%] md:rotate-0"
           />
-        </div>
-      </section>
-
-      <section id="regulamento" aria-labelledby="regulamento-titulo" className="relative scroll-mt-28 overflow-hidden bg-white px-4 py-12 md:px-8 md:py-16">
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 bg-[length:1437px_639px] bg-repeat opacity-20"
-          style={{ backgroundImage: "url(/marca/quadriculado.svg)" }}
-        />
-        <div className="relative mx-auto max-w-6xl">
-          <h2 id="regulamento-titulo" className="w-4/5 max-w-sm md:w-[48%] md:max-w-none">
-            <img src="/marca/confira-regulamento.svg" alt="Confira o regulamento da competição" className="h-auto w-full" />
-          </h2>
-          <div className="mt-6 flex flex-col items-center gap-8 md:mt-2 md:flex-row md:items-center md:gap-8">
-            <img
-              src="/marca/desafio-robotica.svg"
-              alt="Desafio de robótica"
-              className="h-auto w-full md:w-[54%]"
-            />
-            <div className="relative w-full overflow-hidden rounded-[1.75rem] border border-[#E7E5E4] bg-white shadow-[0_10px_30px_rgb(51_0_67_/_0.06)] md:w-[46%]">
-              <img
-                src="/marca/regulamento-robotica-preview.png"
-                alt="Capa do regulamento oficial de robótica do MDX STEAM"
-                className="block h-auto w-full"
-              />
-              <a
-                href="/marca/regulamento-robotica.pdf"
-                download="Regulamento Oficial Robótica MDX Steam.pdf"
-                className={`${paytone.className} absolute bottom-6 left-1/2 z-10 inline-flex -translate-x-1/2 items-center rounded-full bg-[#330043] px-8 py-3 text-sm tracking-wide text-white shadow-[0_8px_0_rgb(51_0_67_/_0.18)] transition-transform duration-300 hover:scale-105 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#330043] md:bottom-8 md:px-10 md:py-3.5 md:text-base`}
-              >
-                BAIXAR PDF
-              </a>
-            </div>
-          </div>
         </div>
       </section>
 

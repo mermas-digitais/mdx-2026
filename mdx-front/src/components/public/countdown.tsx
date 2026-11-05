@@ -3,12 +3,10 @@
 import { useEffect, useState } from "react";
 
 export function Countdown({
-  startsAt,
-  endsAt,
+  deadline,
   tone = "light",
 }: {
-  startsAt: string | null;
-  endsAt: string | null;
+  deadline: string;
   tone?: "light" | "glass";
 }) {
   const [now, setNow] = useState<number | null>(null);
@@ -20,21 +18,16 @@ export function Countdown({
     return () => window.clearInterval(timer);
   }, []);
 
-  if (!startsAt || now === null) return null;
-  const start = new Date(startsAt).getTime();
-  const end = endsAt ? new Date(endsAt).getTime() : null;
-  if (Number.isNaN(start)) return null;
+  const end = new Date(deadline).getTime();
+  if (now === null || Number.isNaN(end)) return null;
 
   const ink = tone === "glass" ? "text-white" : "text-[#330043]";
 
-  if (now >= start && (end === null || now < end)) {
-    return <p className={`font-heading text-lg font-bold ${ink}`}>O evento está acontecendo.</p>;
-  }
-  if (end !== null && now >= end) {
-    return <p className={`font-heading text-lg font-bold ${ink}`}>O evento já terminou.</p>;
+  if (now >= end) {
+    return <p className={`font-heading text-lg font-bold ${ink}`}>As inscrições estão encerradas.</p>;
   }
 
-  const totalSeconds = Math.max(0, Math.floor((start - now) / 1000));
+  const totalSeconds = Math.max(0, Math.floor((end - now) / 1000));
   const days = Math.floor(totalSeconds / 86400);
   const hours = Math.floor((totalSeconds % 86400) / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
