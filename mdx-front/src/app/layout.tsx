@@ -19,6 +19,7 @@ const atkinson = Atkinson_Hyperlegible({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://mdx26.mermasdigitais.com.br"),
   title: {
     default: "Mermãs Digitais",
     template: "%s · Mermãs Digitais",

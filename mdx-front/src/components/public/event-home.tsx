@@ -89,9 +89,11 @@ export function EventHome({ event }: { event: PublicEvent }) {
         style={{ backgroundImage: "url(/marca/banner-lp-oficial.svg)" }}
       >
         <h1 className="absolute inset-0 m-0 flex items-center justify-center">
+          <span className="sr-only">{event.title}</span>
           <img
             src="/marca/menina-mdx-inscricao.svg"
-            alt={event.title}
+            alt=""
+            aria-hidden="true"
             className="mdx-float h-auto max-h-[92%] w-auto max-w-[96%] object-contain"
           />
         </h1>

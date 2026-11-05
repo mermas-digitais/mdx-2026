@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { bannerSrc } from "@/components/admin/event-format";
 import { EventHome } from "@/components/public/event-home";
 import { loadEventPage } from "@/server/public-event";
-import { eventMetadata } from "@/lib/event-metadata";
+import { eventMetadata, eventStructuredData } from "@/lib/event-metadata";
 
 export async function generateMetadata({
   params,
@@ -53,5 +53,17 @@ async function PublicEventBody({
     );
   }
 
-  return <EventHome event={event} />;
+  const structured = eventStructuredData(event, bannerSrc(event.banner));
+
+  return (
+    <>
+      {structured ? (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(structured).replace(/</g, "\\u003c") }}
+        />
+      ) : null}
+      <EventHome event={event} />
+    </>
+  );
 }
