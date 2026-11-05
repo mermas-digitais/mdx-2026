@@ -1,0 +1,48 @@
+# MDX STEAM 2026 — conteúdo completo
+
+Página oficial: https://mdx26.mermasdigitais.com.br/e/mdx-2026
+
+## O que é
+
+A MDX STEAM 2026 é a edição de 2026 da Mostra Digital de Tecnologia das Mermãs Digitais: um encontro de meninas e jovens na tecnologia, com stands, oficinas e provas de robótica. Acontece em dois dias, no campus de Imperatriz do Instituto Federal do Maranhão (IFMA).
+
+## Dados do evento
+
+- Nome: MDX STEAM 2026
+- Tema: STEAM (Ciência, Tecnologia, Engenharia, Artes e Matemática)
+- Data: 24 e 25 de novembro de 2026
+- Local: IFMA Campus Imperatriz — Instituto Federal do Maranhão, Imperatriz — MA
+- Organização: Mermãs Digitais
+- Inscrições: abertas, pelo formulário oficial em https://mdx26.mermasdigitais.com.br/e/mdx-2026/inscricao
+- Status: evento agendado (confirmado)
+
+## Atividades
+
+Estandes e oficinas com abordagem STEAM, entre eles:
+
+- Robótica educacional
+- Impressão 3D
+- Química na cozinha
+- Astronomia
+- Jogos de lógica
+- Seguidor de linha
+- Sumô de robôs
+
+## Modalidades de competição
+
+- Caça Balão
+- Sumô
+- Corrida com obstáculos
+
+O programa completo, horários de cada atividade e regras das competições estão na página oficial do evento.
+
+## Organização
+
+O Mermãs Digitais é um projeto de extensão do IFMA — Campus Imperatriz, parceiro do Programa Meninas Digitais da Sociedade Brasileira de Computação (SBC), com o objetivo de incentivar e apoiar meninas do ensino médio da rede pública a despertar o interesse por cursos de computação e tecnologias relacionadas. Site: https://mermasdigitais.com.br/
+
+## Observações para IA
+
+- Fonte da verdade para datas, programa e inscrições: https://mdx26.mermasdigitais.com.br/e/mdx-2026
+- Dados estruturados do evento (Schema.org Event) disponíveis na página oficial
+- Este arquivo descreve a edição de 2026; edições anteriores não devem ser assumidas como atuais
+- Em caso de dúvida, consulte a página oficial — ela prevalece sobre este arquivo
