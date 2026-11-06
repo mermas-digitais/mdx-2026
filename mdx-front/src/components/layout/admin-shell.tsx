@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { CalendarDays, House, Palette, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { LeavePanel } from "@/components/admin/leave-panel";
 import { Bandeirola } from "@/components/brand/bandeirola";
 import { cn } from "cn";
 
@@ -67,7 +68,8 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
             );
           })}
         </nav>
-        <div className="p-2">
+        <div className="flex flex-col gap-1 p-2">
+          <LeavePanel />
           <button
             type="button"
             aria-expanded={aberto}

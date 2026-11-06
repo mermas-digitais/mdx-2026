@@ -1,6 +1,7 @@
 "use server";
 
 import { readSessionToken } from "@/lib/session-token";
+import { panelToken } from "@/server/panel-cookie";
 import { cookies } from "next/headers";
 import { auth } from "@/auth";
 import { bannerError } from "@/server/event-schema";
@@ -84,6 +85,7 @@ type Failure = {
 type Success<T> = { ok: true; data: T };
 
 async function currentUser(): Promise<AuthUser | null> {
+  if (await panelToken()) return { id: "painel", role: "ADMIN", memberships: [] };
   const session = await auth();
   if (!session?.user?.id || !session.user.role) return null;
   return {
@@ -94,11 +96,13 @@ async function currentUser(): Promise<AuthUser | null> {
 }
 
 async function authorizedFetch(path: string, init: RequestInit = {}) {
+  const panel = await panelToken();
   const cookie = (await cookies()).toString();
-  const token = await readSessionToken(cookie);
-  if (!token?.apiToken) return null;
+  const token = panel ? null : await readSessionToken(cookie);
+  const apiToken = panel ?? token?.apiToken;
+  if (!apiToken) return null;
   const headers = new Headers(init.headers);
-  headers.set("Authorization", `Bearer ${token.apiToken}`);
+  headers.set("Authorization", `Bearer ${apiToken}`);
   if (init.body && !(init.body instanceof FormData) && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
@@ -478,6 +482,31 @@ export async function desistirEquipe(
   return parse(await authorizedFetch(`/api/events/${encodeURIComponent(slug)}/teams/${teamId}/withdraw`, {
     method: "POST",
   }));
+}
+
+export type ParticipantInscription = {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  cpf: string;
+  heard: string;
+  status: string;
+  createdAt: string;
+};
+
+export type InscriptionBoard = {
+  event: { id: string; slug: string; title: string };
+  participants: ParticipantInscription[];
+  teams: RoboticsTeam[];
+};
+
+export async function listarInscricoes(
+  slug: string,
+): Promise<Success<InscriptionBoard> | Failure> {
+  const user = await currentUser();
+  if (!canAccessAdmin(user)) return denied();
+  return parse(await authorizedFetch(`/api/admin/events/${encodeURIComponent(slug)}/inscriptions`));
 }
 
 export async function listarEquipes(

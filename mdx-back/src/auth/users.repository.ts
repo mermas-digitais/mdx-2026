@@ -61,6 +61,18 @@ export class UsersRepository implements OnModuleDestroy {
     return mapUser(row);
   }
 
+  async findAdmin(): Promise<StoredUser | null> {
+    const result = await this.pool.query<UserRow>(
+      `SELECT id, name, email, cpf, password_hash, role
+       FROM users
+       WHERE role = 'ADMIN'
+       ORDER BY created_at
+       LIMIT 1`,
+    );
+    const row = result.rows[0];
+    return row ? mapUser(row) : null;
+  }
+
   async findById(id: string): Promise<StoredUser | null> {
     const result = await this.pool.query<UserRow>(
       `SELECT id, name, email, cpf, password_hash, role

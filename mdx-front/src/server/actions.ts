@@ -1,6 +1,7 @@
 "use server";
 
 import { readSessionToken } from "@/lib/session-token";
+import { panelToken } from "@/server/panel-cookie";
 import { cookies } from "next/headers";
 import { auth } from "@/auth";
 import {
@@ -10,6 +11,7 @@ import {
 } from "@/server/permissions";
 
 async function currentUser(): Promise<AuthUser | null> {
+  if (await panelToken()) return { id: "painel", role: "ADMIN", memberships: [] };
   const session = await auth();
   if (!session?.user?.id || !session.user.role) return null;
   return {
@@ -20,6 +22,8 @@ async function currentUser(): Promise<AuthUser | null> {
 }
 
 async function apiToken() {
+  const panel = await panelToken();
+  if (panel) return panel;
   const cookie = (await cookies()).toString();
   const token = await readSessionToken(cookie);
   return token?.apiToken ?? null;

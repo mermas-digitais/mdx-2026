@@ -18,6 +18,10 @@ const forbiddenHtml = `<!doctype html>
 </html>`;
 
 export const proxy = auth((request) => {
+  if (request.nextUrl.pathname === "/admin" || request.nextUrl.pathname.startsWith("/admin/")) {
+    return NextResponse.next();
+  }
+
   const sessionUser = request.auth?.user;
   const user: AuthUser | null =
     sessionUser?.id && sessionUser.role

@@ -46,6 +46,7 @@ import {
   type EventPatch,
   type EventRecord,
   type FormFieldRecord,
+  type ParticipantRecord,
   type FormFieldWrite,
   type LocationRecord,
   type MemberRecord,
@@ -99,6 +100,24 @@ export class EventsService {
     private readonly robotics: RoboticsRepository,
     private readonly storage: StorageService,
   ) {}
+
+  async inscriptions(idOrSlug: string): Promise<{
+    event: { id: string; slug: string; title: string };
+    participants: ParticipantRecord[];
+    teams: Awaited<ReturnType<RoboticsRepository['teamsForEvent']>>;
+  }> {
+    const event = await this.events.findByIdOrSlug(idOrSlug);
+    if (!event) throw new NotFoundException('Evento não encontrado.');
+    const [participants, teams] = await Promise.all([
+      this.events.listParticipants(event.id),
+      this.robotics.teamsForEvent(event.id),
+    ]);
+    return {
+      event: { id: event.id, slug: event.slug, title: event.title },
+      participants,
+      teams,
+    };
+  }
 
   async list(user: AuthUser): Promise<AdminEvent[]> {
     const ids = user.role === 'ADMIN' ? null : user.memberships.map((item) => item.eventId);

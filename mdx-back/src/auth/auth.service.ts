@@ -8,7 +8,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import bcrypt from 'bcrypt';
-import { createHmac, randomBytes, randomInt, timingSafeEqual } from 'node:crypto';
+import { createHash, createHmac, randomBytes, randomInt, timingSafeEqual } from 'node:crypto';
 import { cpfDigits, cpfError } from '../server/form-schema.js';
 import type { AuthUser } from '../server/permissions.js';
 import { LoginCodesRepository } from './login-codes.repository.js';
@@ -232,6 +232,27 @@ export class AuthService {
     }
   }
 
+  async panelLogin(password: string): Promise<AuthSession> {
+    const key = 'panel-login';
+    this.limiter.assertAllowed(key);
+    const expected = this.config.get<string>('ADMIN_PANEL_PASSWORD') || 'adminMDX26';
+    if (!sameSecret(password, expected)) {
+      this.limiter.recordFailure(key);
+      throw new UnauthorizedException('Senha incorreta.');
+    }
+    this.limiter.recordSuccess(key);
+    const admin = await this.users.findAdmin();
+    if (admin) return this.sessionFor(admin);
+    const panelUser = {
+      id: '00000000-0000-4000-8000-000000000001',
+      name: 'Painel',
+      email: 'painel@mdx.local',
+      role: 'ADMIN' as const,
+      memberships: [],
+    };
+    return { token: await this.tokens.sign(panelUser), user: panelUser };
+  }
+
   async profile(userId: string): Promise<{ id: string; name: string; email: string; cpf: string | null }> {
     const stored = await this.users.findById(userId);
     if (!stored) throw new UnauthorizedException('Faça login para continuar.');
@@ -276,6 +297,12 @@ export class AuthService {
     };
     return { token: await this.tokens.sign(user), user };
   }
+}
+
+function sameSecret(given: string, expected: string): boolean {
+  const left = createHash('sha256').update(given).digest();
+  const right = createHash('sha256').update(expected).digest();
+  return timingSafeEqual(left, right);
 }
 
 function safeEqual(left: string, right: string): boolean {

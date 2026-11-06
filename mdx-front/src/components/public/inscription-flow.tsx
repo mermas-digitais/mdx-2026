@@ -155,15 +155,6 @@ export function InscriptionFlow({
     setNotice("Desistência registrada. A vaga confirmada passou para a lista de espera, se havia alguém.");
   }
 
-  if (!verified) {
-    return (
-      <div className="flex flex-col gap-4">
-        <QuietBack href={`/e/${slug}`} />
-        <EmailGate onVerified={setVerified} />
-      </div>
-    );
-  }
-
   if (fresh) {
     return (
       <div className="flex flex-col gap-4">
@@ -200,7 +191,18 @@ export function InscriptionFlow({
     );
   }
 
-  if (path === "participant") {
+  if ((path === "participant" || path === "team") && !verified) {
+    return (
+      <div className="flex flex-col gap-4">
+        <button type="button" onClick={leaveForm} className="text-left text-sm text-[#A398AE]">
+          Voltar
+        </button>
+        <EmailGate onVerified={setVerified} />
+      </div>
+    );
+  }
+
+  if (path === "participant" && verified) {
     return (
       <div className="flex flex-col gap-4">
         <SteppedRegistration
@@ -219,7 +221,7 @@ export function InscriptionFlow({
     );
   }
 
-  if (path === "team") {
+  if (path === "team" && verified) {
     return (
       <div className="flex flex-col gap-4">
         <TeamRegistration

@@ -54,6 +54,17 @@ export type EventRecord = {
   activityCount: number;
 };
 
+export type ParticipantRecord = {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  cpf: string;
+  heard: string;
+  status: string;
+  createdAt: string;
+};
+
 export type LocationRecord = {
   id: string;
   name: string;
@@ -210,6 +221,14 @@ export class EventsRepository implements OnModuleDestroy {
     );
     const row = result.rows[0];
     return row ? mapEvent(row) : null;
+  }
+
+  async findByIdOrSlug(value: string): Promise<EventRecord | null> {
+    if (UUID.test(value)) {
+      const byId = await this.findById(value);
+      if (byId) return byId;
+    }
+    return this.findBySlug(value);
   }
 
   async findBySlug(slug: string): Promise<EventRecord | null> {
@@ -803,6 +822,50 @@ export class EventsRepository implements OnModuleDestroy {
       [fieldId, eventId],
     );
     return (result.rowCount ?? 0) > 0;
+  }
+
+  async listParticipants(eventId: string): Promise<ParticipantRecord[]> {
+    if (!UUID.test(eventId)) return [];
+    const result = await this.pool.query<{
+      id: string;
+      status: string;
+      created_at: Date;
+      name: string | null;
+      email: string | null;
+      phone: string | null;
+      heard: string | null;
+      cpf: string | null;
+    }>(
+      `SELECT r.id,
+              r.status,
+              r.created_at,
+              r.answers->>'name' AS name,
+              r.answers->>'email' AS email,
+              r.answers->>'phone' AS phone,
+              r.answers->>heard.id AS heard,
+              u.cpf
+       FROM registrations r
+       JOIN users u ON u.id = r.user_id
+       LEFT JOIN LATERAL (
+         SELECT id::text AS id
+         FROM form_fields
+         WHERE event_id = r.event_id AND label = 'Como soube do evento'
+         LIMIT 1
+       ) heard ON true
+       WHERE r.event_id = $1
+       ORDER BY r.created_at DESC`,
+      [eventId],
+    );
+    return result.rows.map((row) => ({
+      id: row.id,
+      name: row.name ?? '',
+      email: row.email ?? '',
+      phone: row.phone ?? '',
+      cpf: row.cpf ?? '',
+      heard: row.heard ?? '',
+      status: row.status,
+      createdAt: new Date(row.created_at).toISOString(),
+    }));
   }
 
   async createRegistration(input: {

@@ -62,6 +62,13 @@ export class CpfStatusDto {
   email?: string;
 }
 
+export class PanelLoginDto {
+  @IsString()
+  @MinLength(1, { message: 'Informe a senha.' })
+  @MaxLength(72)
+  password!: string;
+}
+
 export class AdoptSessionDto {
   @IsString()
   @MinLength(20)
@@ -90,6 +97,12 @@ export class AuthController {
   @HttpCode(200)
   login(@Body() body: LoginDto) {
     return this.auth.login(body.email, body.password);
+  }
+
+  @Post('panel-login')
+  @HttpCode(200)
+  panelLogin(@Body() body: PanelLoginDto) {
+    return this.auth.panelLogin(body.password);
   }
 
   @Post('otp/request')

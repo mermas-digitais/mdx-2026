@@ -85,6 +85,12 @@ export class AdminEventsController {
     return this.events.list(request.user);
   }
 
+  @Get(':eventId/inscriptions')
+  @RequirePermission((user) => canAccessAdmin(user))
+  inscriptions(@Param('eventId') eventId: string) {
+    return this.events.inscriptions(eventId);
+  }
+
   @Post()
   @HttpCode(201)
   @RequirePermission((user) => canCreateEvent(user))

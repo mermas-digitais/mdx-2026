@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { readSessionToken } from "@/lib/session-token";
+import { panelToken } from "@/server/panel-cookie";
 import { cookies } from "next/headers";
 
 export async function GET(
@@ -7,9 +8,11 @@ export async function GET(
   context: { params: Promise<{ slug: string; teamId: string; documentId: string }> },
 ) {
   const { slug, teamId, documentId } = await context.params;
+  const panel = await panelToken();
   const cookie = (await cookies()).toString();
-  const token = await readSessionToken(cookie);
-  if (typeof token?.apiToken !== "string") {
+  const token = panel ? null : await readSessionToken(cookie);
+  const apiToken = panel ?? token?.apiToken;
+  if (typeof apiToken !== "string") {
     return NextResponse.json({ message: "Faça login para continuar." }, { status: 401 });
   }
 
@@ -17,7 +20,7 @@ export async function GET(
   const response = await fetch(
     `${api}/api/events/${encodeURIComponent(slug)}/teams/${teamId}/documents/${encodeURIComponent(documentId)}`,
     {
-      headers: { Authorization: `Bearer ${token.apiToken}` },
+      headers: { Authorization: `Bearer ${apiToken}` },
       cache: "no-store",
     },
   );
