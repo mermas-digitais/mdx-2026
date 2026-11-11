@@ -39,6 +39,7 @@ export type RoboticsTeamView = {
   advisorName: string;
   advisorEmail: string;
   advisorPhone: string;
+  advisorCpf: string;
   withdrawnAt: string | null;
   createdAt: string;
   members: RoboticsMemberView[];
@@ -78,6 +79,7 @@ type TeamRow = {
   advisor_name: string;
   advisor_email: string;
   advisor_phone: string;
+  advisor_cpf: string | null;
   withdrawn_at: Date | null;
   created_at: Date;
 };
@@ -308,6 +310,162 @@ export class RoboticsRepository implements OnModuleDestroy {
     }
   }
 
+  async updateTeam(input: {
+    eventId: string;
+    teamId: string;
+    advisorUserId: string;
+    name: string;
+    institution: string;
+    advisorName: string;
+    advisorPhone: string;
+    advisorCpf: string;
+    members: { id: string; fullName: string; cpf: string; birthDate: string }[];
+  }): Promise<boolean> {
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      const team = await client.query<{ id: string }>(
+        `SELECT id FROM robotics_teams
+         WHERE id = $1 AND event_id = $2 AND advisor_user_id = $3 AND withdrawn_at IS NULL
+         FOR UPDATE`,
+        [input.teamId, input.eventId, input.advisorUserId],
+      );
+      if (!team.rows[0]) {
+        await client.query('ROLLBACK');
+        return false;
+      }
+
+      const nameTaken = await client.query(
+        `SELECT 1 FROM robotics_teams
+         WHERE event_id = $1 AND withdrawn_at IS NULL AND lower(name) = lower($2) AND id <> $3`,
+        [input.eventId, input.name, input.teamId],
+      );
+      if ((nameTaken.rowCount ?? 0) > 0) {
+        throw new RoboticsRejected({ teamName: 'Já existe uma equipe com esse nome.' });
+      }
+
+      const active = await client.query<{ id: string }>(
+        `SELECT id FROM robotics_team_members
+         WHERE team_id = $1 AND released_at IS NULL
+         FOR UPDATE`,
+        [input.teamId],
+      );
+      const activeIds = new Set(active.rows.map((row) => row.id));
+      const sameMembers =
+        input.members.length === activeIds.size &&
+        input.members.every((member) => activeIds.has(member.id));
+      if (!sameMembers) {
+        throw new RoboticsRejected({ members: 'A lista de integrantes mudou. Atualize a página.' });
+      }
+
+      const memberIds = input.members.map((member) => member.id);
+      for (const member of input.members) {
+        const taken = await client.query(
+          `SELECT 1 FROM robotics_team_members
+           WHERE event_id = $1 AND cpf = $2 AND released_at IS NULL AND NOT (id = ANY($3::uuid[]))`,
+          [input.eventId, member.cpf, memberIds],
+        );
+        if ((taken.rowCount ?? 0) > 0) {
+          throw new RoboticsRejected({
+            [`members.${input.members.indexOf(member)}.cpf`]: 'Este CPF já está em uma equipe deste evento.',
+          });
+        }
+      }
+
+      try {
+        await client.query(
+          `UPDATE users SET name = $2, cpf = $3, updated_at = NOW() WHERE id = $1`,
+          [input.advisorUserId, input.advisorName, input.advisorCpf],
+        );
+      } catch (error) {
+        if (constraintOf(error) === 'users_cpf_key') {
+          throw new RoboticsRejected({ advisorCpf: 'Já existe uma conta com esse CPF.' });
+        }
+        throw error;
+      }
+
+      await client.query(
+        `UPDATE robotics_teams
+         SET name = $2, institution = $3, advisor_name = $4, advisor_phone = $5, updated_at = NOW()
+         WHERE id = $1`,
+        [input.teamId, input.name, input.institution, input.advisorName, input.advisorPhone],
+      );
+
+      for (const member of input.members) {
+        await client.query(
+          `UPDATE robotics_team_members
+           SET full_name = $3,
+               cpf = $4::varchar,
+               birth_date = $5::date,
+               user_id = (SELECT id FROM users WHERE cpf = $4::varchar)
+           WHERE id = $1 AND team_id = $2 AND released_at IS NULL`,
+          [member.id, input.teamId, member.fullName, member.cpf, member.birthDate],
+        );
+      }
+
+      await client.query('COMMIT');
+      return true;
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  async releaseMember(
+    eventId: string,
+    teamId: string,
+    memberId: string,
+    advisorUserId: string,
+  ): Promise<boolean> {
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      const team = await client.query<{ id: string }>(
+        `SELECT id FROM robotics_teams
+         WHERE id = $1 AND event_id = $2 AND advisor_user_id = $3 AND withdrawn_at IS NULL
+         FOR UPDATE`,
+        [teamId, eventId, advisorUserId],
+      );
+      if (!team.rows[0]) {
+        await client.query('ROLLBACK');
+        return false;
+      }
+
+      const active = await client.query<{ id: string }>(
+        `SELECT id FROM robotics_team_members
+         WHERE team_id = $1 AND released_at IS NULL
+         FOR UPDATE`,
+        [teamId],
+      );
+      if (active.rows.length <= 3) {
+        throw new RoboticsRejected({
+          members: 'A equipe precisa ficar com pelo menos 3 integrantes.',
+        });
+      }
+
+      const updated = await client.query(
+        `UPDATE robotics_team_members
+         SET released_at = NOW()
+         WHERE id = $1 AND team_id = $2 AND released_at IS NULL`,
+        [memberId, teamId],
+      );
+      if ((updated.rowCount ?? 0) === 0) {
+        await client.query('ROLLBACK');
+        return false;
+      }
+
+      await client.query('COMMIT');
+      return true;
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
   async withdraw(eventId: string, teamId: string, advisorUserId: string): Promise<boolean> {
     const client = await this.pool.connect();
     try {
@@ -383,32 +541,38 @@ export class RoboticsRepository implements OnModuleDestroy {
 
   async teamsForAdvisor(eventId: string, advisorUserId: string): Promise<RoboticsTeamView[]> {
     return this.collect(
-      `SELECT id, event_id, name, institution, advisor_user_id, advisor_name,
-              advisor_email, advisor_phone, withdrawn_at, created_at
-       FROM robotics_teams
-       WHERE event_id = $1 AND advisor_user_id = $2
-       ORDER BY created_at DESC`,
+      `SELECT team.id, team.event_id, team.name, team.institution, team.advisor_user_id,
+              team.advisor_name, team.advisor_email, team.advisor_phone, advisor.cpf AS advisor_cpf,
+              team.withdrawn_at, team.created_at
+       FROM robotics_teams team
+       LEFT JOIN users advisor ON advisor.id = team.advisor_user_id
+       WHERE team.event_id = $1 AND team.advisor_user_id = $2
+       ORDER BY team.created_at DESC`,
       [eventId, advisorUserId],
     );
   }
 
   async teamsForEvent(eventId: string): Promise<RoboticsTeamView[]> {
     return this.collect(
-      `SELECT id, event_id, name, institution, advisor_user_id, advisor_name,
-              advisor_email, advisor_phone, withdrawn_at, created_at
-       FROM robotics_teams
-       WHERE event_id = $1
-       ORDER BY created_at`,
+      `SELECT team.id, team.event_id, team.name, team.institution, team.advisor_user_id,
+              team.advisor_name, team.advisor_email, team.advisor_phone, advisor.cpf AS advisor_cpf,
+              team.withdrawn_at, team.created_at
+       FROM robotics_teams team
+       LEFT JOIN users advisor ON advisor.id = team.advisor_user_id
+       WHERE team.event_id = $1
+       ORDER BY team.created_at`,
       [eventId],
     );
   }
 
   async teamById(teamId: string): Promise<RoboticsTeamView | null> {
     const teams = await this.collect(
-      `SELECT id, event_id, name, institution, advisor_user_id, advisor_name,
-              advisor_email, advisor_phone, withdrawn_at, created_at
-       FROM robotics_teams
-       WHERE id = $1`,
+      `SELECT team.id, team.event_id, team.name, team.institution, team.advisor_user_id,
+              team.advisor_name, team.advisor_email, team.advisor_phone, advisor.cpf AS advisor_cpf,
+              team.withdrawn_at, team.created_at
+       FROM robotics_teams team
+       LEFT JOIN users advisor ON advisor.id = team.advisor_user_id
+       WHERE team.id = $1`,
       [teamId],
     );
     return teams[0] ?? null;
@@ -477,6 +641,7 @@ export class RoboticsRepository implements OnModuleDestroy {
           AND registration.event_id = member.event_id
           AND registration.status = 'CONFIRMED'
          WHERE member.team_id = ANY($1::uuid[])
+           AND member.released_at IS NULL
          ORDER BY member.created_at`,
         [ids],
       ),
@@ -498,6 +663,7 @@ export class RoboticsRepository implements OnModuleDestroy {
       advisorName: team.advisor_name,
       advisorEmail: team.advisor_email,
       advisorPhone: team.advisor_phone,
+      advisorCpf: team.advisor_cpf ?? "",
       withdrawnAt: team.withdrawn_at ? team.withdrawn_at.toISOString() : null,
       createdAt: team.created_at.toISOString(),
       members: members.rows

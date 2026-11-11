@@ -444,6 +444,7 @@ export type RoboticsTeam = {
   advisorName: string;
   advisorEmail: string;
   advisorPhone: string;
+  advisorCpf: string;
   withdrawnAt: string | null;
   members: RoboticsMember[];
   modalities: { modalityId: string; name: string; status: "CONFIRMED" | "WAITLIST" | "CANCELLED" }[];
@@ -471,6 +472,39 @@ export async function inscreverEquipe(
     method: "POST",
     body: formData,
   }));
+}
+
+export async function editarEquipe(
+  slug: string,
+  teamId: string,
+  input: {
+    teamName: string;
+    advisorName: string;
+    advisorPhone: string;
+    advisorCpf: string;
+    institution: string;
+    members: { id: string; fullName: string; cpf: string; birthDate: string }[];
+  },
+): Promise<Success<RoboticsTeam> | Failure> {
+  const user = await currentUser();
+  if (!user) return { ok: false, status: 401, message: "Entre na sua conta para se inscrever." };
+  return parse(await authorizedFetch(`/api/events/${encodeURIComponent(slug)}/teams/${teamId}`, {
+    method: "PATCH",
+    body: JSON.stringify(input),
+  }));
+}
+
+export async function tirarIntegrante(
+  slug: string,
+  teamId: string,
+  memberId: string,
+): Promise<Success<RoboticsTeam> | Failure> {
+  const user = await currentUser();
+  if (!user) return { ok: false, status: 401, message: "Entre na sua conta para se inscrever." };
+  return parse(await authorizedFetch(
+    `/api/events/${encodeURIComponent(slug)}/teams/${teamId}/members/${memberId}/release`,
+    { method: "POST" },
+  ));
 }
 
 export async function desistirEquipe(
