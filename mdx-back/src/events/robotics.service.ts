@@ -141,6 +141,27 @@ export class RoboticsService {
     return this.robotics.teamsForEvent(eventId);
   }
 
+  async releaseMember(
+    slug: string,
+    teamId: string,
+    memberId: string,
+    user: AuthUser,
+  ): Promise<RoboticsTeamView> {
+    const event = await this.openEvent(slug);
+    try {
+      const released = await this.robotics.releaseMember(event.id, teamId, memberId, user.id);
+      if (!released) throw new NotFoundException('Integrante não encontrada.');
+    } catch (error) {
+      if (error instanceof RoboticsRejected) {
+        throw new BadRequestException(error.fields.members ?? 'Não foi possível tirar a integrante.');
+      }
+      throw error;
+    }
+    const team = await this.robotics.teamById(teamId);
+    if (!team) throw new NotFoundException('Equipe não encontrada.');
+    return team;
+  }
+
   async withdraw(slug: string, teamId: string, user: AuthUser): Promise<RoboticsTeamView> {
     const event = await this.openEvent(slug);
     const removed = await this.robotics.withdraw(event.id, teamId, user.id);

@@ -397,6 +397,18 @@ export class PublicEventsController {
     return this.robotics.createTeam(slug, body?.payload, files ?? [], request.user);
   }
 
+  @Post(':slug/teams/:teamId/members/:memberId/release')
+  @HttpCode(200)
+  @UseGuards(AuthGuard)
+  releaseMember(
+    @Param('slug') slug: string,
+    @Param('teamId') teamId: string,
+    @Param('memberId') memberId: string,
+    @Req() request: AuthedRequest,
+  ) {
+    return this.robotics.releaseMember(slug, teamId, memberId, request.user);
+  }
+
   @Post(':slug/teams/:teamId/withdraw')
   @HttpCode(200)
   @UseGuards(AuthGuard)

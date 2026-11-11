@@ -308,6 +308,59 @@ export class RoboticsRepository implements OnModuleDestroy {
     }
   }
 
+  async releaseMember(
+    eventId: string,
+    teamId: string,
+    memberId: string,
+    advisorUserId: string,
+  ): Promise<boolean> {
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      const team = await client.query<{ id: string }>(
+        `SELECT id FROM robotics_teams
+         WHERE id = $1 AND event_id = $2 AND advisor_user_id = $3 AND withdrawn_at IS NULL
+         FOR UPDATE`,
+        [teamId, eventId, advisorUserId],
+      );
+      if (!team.rows[0]) {
+        await client.query('ROLLBACK');
+        return false;
+      }
+
+      const active = await client.query<{ id: string }>(
+        `SELECT id FROM robotics_team_members
+         WHERE team_id = $1 AND released_at IS NULL
+         FOR UPDATE`,
+        [teamId],
+      );
+      if (active.rows.length <= 3) {
+        throw new RoboticsRejected({
+          members: 'A equipe precisa ficar com pelo menos 3 integrantes.',
+        });
+      }
+
+      const updated = await client.query(
+        `UPDATE robotics_team_members
+         SET released_at = NOW()
+         WHERE id = $1 AND team_id = $2 AND released_at IS NULL`,
+        [memberId, teamId],
+      );
+      if ((updated.rowCount ?? 0) === 0) {
+        await client.query('ROLLBACK');
+        return false;
+      }
+
+      await client.query('COMMIT');
+      return true;
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
   async withdraw(eventId: string, teamId: string, advisorUserId: string): Promise<boolean> {
     const client = await this.pool.connect();
     try {
@@ -477,6 +530,7 @@ export class RoboticsRepository implements OnModuleDestroy {
           AND registration.event_id = member.event_id
           AND registration.status = 'CONFIRMED'
          WHERE member.team_id = ANY($1::uuid[])
+           AND member.released_at IS NULL
          ORDER BY member.created_at`,
         [ids],
       ),

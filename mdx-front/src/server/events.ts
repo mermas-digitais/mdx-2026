@@ -473,6 +473,19 @@ export async function inscreverEquipe(
   }));
 }
 
+export async function tirarIntegrante(
+  slug: string,
+  teamId: string,
+  memberId: string,
+): Promise<Success<RoboticsTeam> | Failure> {
+  const user = await currentUser();
+  if (!user) return { ok: false, status: 401, message: "Entre na sua conta para se inscrever." };
+  return parse(await authorizedFetch(
+    `/api/events/${encodeURIComponent(slug)}/teams/${teamId}/members/${memberId}/release`,
+    { method: "POST" },
+  ));
+}
+
 export async function desistirEquipe(
   slug: string,
   teamId: string,

@@ -7,7 +7,7 @@ import { useState, useSyncExternalStore } from "react";
 import { EmailGate, type VerifiedEmail } from "@/components/public/email-gate";
 import { SteppedRegistration } from "@/components/public/stepped-registration";
 import { TeamRegistration } from "@/components/public/team-registration";
-import { desistirEquipe, type RoboticsTeam } from "@/server/events";
+import { desistirEquipe, tirarIntegrante, type RoboticsTeam } from "@/server/events";
 import type { FormFieldConfig } from "@/server/form-schema";
 
 const VERIFIED_STORAGE = "mdx-email-verificado";
@@ -92,7 +92,7 @@ export function InscriptionFlow({
   );
   const [mine, setMine] = useState(teams);
   const [fresh, setFresh] = useState<RoboticsTeam | null>(null);
-  const [withdrawing, setWithdrawing] = useState<string | null>(null);
+  const [pendingKey, setPendingKey] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const router = useRouter();
   const storedVerification = useSyncExternalStore(subscribeVerification, snapshotVerification, () => null);
@@ -144,15 +144,27 @@ export function InscriptionFlow({
   }
 
   async function withdraw(teamId: string) {
-    setWithdrawing(teamId);
+    setPendingKey(`withdraw:${teamId}`);
     const result = await desistirEquipe(slug, teamId);
-    setWithdrawing(null);
+    setPendingKey(null);
     if (!result.ok) {
       setNotice(result.message);
       return;
     }
     setMine((current) => current.map((team) => (team.id === result.data.id ? result.data : team)));
     setNotice("Desistência registrada. A vaga confirmada passou para a lista de espera, se havia alguém.");
+  }
+
+  async function removeMember(teamId: string, memberId: string) {
+    setPendingKey(`remove:${memberId}`);
+    const result = await tirarIntegrante(slug, teamId, memberId);
+    setPendingKey(null);
+    if (!result.ok) {
+      setNotice(result.message);
+      return;
+    }
+    setMine((current) => current.map((team) => (team.id === result.data.id ? result.data : team)));
+    setNotice("Integrante retirada da equipe.");
   }
 
   if (fresh) {
@@ -265,7 +277,16 @@ export function InscriptionFlow({
           <span className="mt-1 block text-sm">Só o orientador. Caça Balão, Sumô e Corrida com obstáculos.</span>
         </button>
       </div>
-      {mine.length > 0 ? <TeamList teams={mine} pendingId={withdrawing} notice={notice} onWithdraw={(id) => void withdraw(id)} closed={closed || preview} /> : null}
+      {mine.length > 0 ? (
+        <TeamList
+          teams={mine}
+          pendingKey={pendingKey}
+          notice={notice}
+          onWithdraw={(id) => void withdraw(id)}
+          onRemove={(teamId, memberId) => void removeMember(teamId, memberId)}
+          closed={closed || preview}
+        />
+      ) : null}
     </div>
   );
 }
@@ -280,15 +301,17 @@ function QuietBack({ href }: { href: string }) {
 
 function TeamList({
   teams,
-  pendingId,
+  pendingKey,
   notice,
   onWithdraw,
+  onRemove,
   closed,
 }: {
   teams: RoboticsTeam[];
-  pendingId: string | null;
+  pendingKey: string | null;
   notice: string | null;
   onWithdraw: (teamId: string) => void;
+  onRemove: (teamId: string, memberId: string) => void;
   closed: boolean;
 }) {
   return (
@@ -306,23 +329,38 @@ function TeamList({
               </li>
             ))}
           </ul>
-          <ul className="mt-2 text-sm">
+          <ul className="mt-2 flex flex-col gap-2 text-sm">
             {team.members.map((member) => (
-              <li key={member.id}>
-                {member.fullName}
-                {member.linked ? ` · vinculada${member.accountEmail ? ` a ${member.accountEmail}` : ""}` : " · sem conta ainda"}
-                {member.accountInstitution ? ` · instituição na conta: ${member.accountInstitution}` : ""}
+              <li key={member.id} className="flex flex-wrap items-center justify-between gap-2">
+                <span>
+                  {member.fullName}
+                  {member.linked ? ` · vinculada${member.accountEmail ? ` a ${member.accountEmail}` : ""}` : " · sem conta ainda"}
+                  {member.accountInstitution ? ` · instituição na conta: ${member.accountInstitution}` : ""}
+                </span>
+                {!team.withdrawnAt && !closed && team.members.length > 3 ? (
+                  <button
+                    type="button"
+                    className="font-bold text-[#BE185D] underline"
+                    disabled={pendingKey === `remove:${member.id}`}
+                    onClick={() => onRemove(team.id, member.id)}
+                  >
+                    {pendingKey === `remove:${member.id}` ? "Tirando…" : "Tirar da equipe"}
+                  </button>
+                ) : null}
               </li>
             ))}
           </ul>
+          {!team.withdrawnAt && !closed && team.members.length <= 3 ? (
+            <p className="mt-2 text-sm text-[#4C1D95]">A equipe precisa ficar com pelo menos 3 integrantes.</p>
+          ) : null}
           {!team.withdrawnAt && !closed ? (
             <button
               type="button"
               className="mt-3 font-bold text-[#BE185D] underline"
-              disabled={pendingId === team.id}
+              disabled={pendingKey === `withdraw:${team.id}`}
               onClick={() => onWithdraw(team.id)}
             >
-              {pendingId === team.id ? "Registrando desistência…" : "Desistir da equipe"}
+              {pendingKey === `withdraw:${team.id}` ? "Registrando desistência…" : "Desistir da equipe"}
             </button>
           ) : null}
           {team.withdrawnAt ? <p className="mt-2 text-sm font-semibold">Desistência registrada.</p> : null}
