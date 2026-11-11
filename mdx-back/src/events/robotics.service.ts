@@ -9,7 +9,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { cpfDigits, cpfError, formIssues } from '../server/form-schema.js';
-import { roboticsTeamSchema } from '../server/robotics-schema.js';
+import { roboticsTeamSchema, roboticsTeamUpdateSchema } from '../server/robotics-schema.js';
 import { canManageEvent, type AuthUser } from '../server/permissions.js';
 import { EventsRepository } from './events.repository.js';
 import {
@@ -139,6 +139,50 @@ export class RoboticsService {
   async list(eventId: string): Promise<RoboticsTeamView[]> {
     await this.requireEvent(eventId);
     return this.robotics.teamsForEvent(eventId);
+  }
+
+  async updateTeam(slug: string, teamId: string, payload: unknown, user: AuthUser): Promise<RoboticsTeamView> {
+    const event = await this.openEvent(slug);
+    const parsed = roboticsTeamUpdateSchema.safeParse(payload);
+    if (!parsed.success) {
+      throw new BadRequestException({
+        statusCode: 400,
+        message: 'Revise os campos.',
+        fields: formIssues(parsed.error),
+      });
+    }
+    const data = parsed.data;
+    try {
+      const updated = await this.robotics.updateTeam({
+        eventId: event.id,
+        teamId,
+        advisorUserId: user.id,
+        name: data.teamName,
+        institution: data.institution,
+        advisorName: data.advisorName,
+        advisorPhone: data.advisorPhone,
+        advisorCpf: cpfDigits(data.advisorCpf),
+        members: data.members.map((member) => ({
+          id: member.id,
+          fullName: member.fullName,
+          cpf: cpfDigits(member.cpf),
+          birthDate: member.birthDate,
+        })),
+      });
+      if (!updated) throw new NotFoundException('Equipe não encontrada.');
+    } catch (error) {
+      if (error instanceof RoboticsRejected) {
+        throw new BadRequestException({
+          statusCode: 400,
+          message: 'Revise os campos.',
+          fields: error.fields,
+        });
+      }
+      throw error;
+    }
+    const team = await this.robotics.teamById(teamId);
+    if (!team) throw new NotFoundException('Equipe não encontrada.');
+    return team;
   }
 
   async releaseMember(

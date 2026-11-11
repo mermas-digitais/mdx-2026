@@ -397,6 +397,17 @@ export class PublicEventsController {
     return this.robotics.createTeam(slug, body?.payload, files ?? [], request.user);
   }
 
+  @Patch(':slug/teams/:teamId')
+  @UseGuards(AuthGuard)
+  updateTeam(
+    @Param('slug') slug: string,
+    @Param('teamId') teamId: string,
+    @Body() body: unknown,
+    @Req() request: AuthedRequest,
+  ) {
+    return this.robotics.updateTeam(slug, teamId, body, request.user);
+  }
+
   @Post(':slug/teams/:teamId/members/:memberId/release')
   @HttpCode(200)
   @UseGuards(AuthGuard)
