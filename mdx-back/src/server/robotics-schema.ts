@@ -164,6 +164,78 @@ export const roboticsTeamUpdateSchema = z
 
 export type RoboticsTeamUpdate = z.infer<typeof roboticsTeamUpdateSchema>;
 
+export const roboticsAdminUpdateSchema = z
+  .object({
+    teamName: z
+      .string()
+      .trim()
+      .min(2, "Informe o nome da equipe.")
+      .max(80, "O nome da equipe pode ter no máximo 80 caracteres."),
+    advisorName: z.string().trim().min(2, "Informe o nome do orientador.").max(80),
+    advisorEmail: z
+      .string()
+      .trim()
+      .toLowerCase()
+      .regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, "Informe um e-mail válido."),
+    advisorPhone: z.string().trim().min(8, "Informe o WhatsApp com DDD.").max(20),
+    advisorCpf: z.string().trim(),
+    institution: z
+      .string()
+      .trim()
+      .min(2, "Informe a instituição de ensino.")
+      .max(120, "A instituição pode ter no máximo 120 caracteres."),
+    members: z
+      .array(
+        z.object({
+          id: uuid,
+          fullName: z.string().trim().min(2, "Informe o nome da integrante.").max(80),
+          cpf: z.string().trim(),
+          birthDate: z.string().trim(),
+        }),
+      )
+      .max(5, "A equipe precisa de 3 a 5 integrantes."),
+  })
+  .superRefine((value, ctx) => {
+    const phoneDigits = value.advisorPhone.replace(/\D/g, "").length;
+    if (phoneDigits !== 10 && phoneDigits !== 11) {
+      ctx.addIssue({ code: "custom", path: ["advisorPhone"], message: "Informe o WhatsApp com DDD." });
+    }
+    if (cpfError(value.advisorCpf)) {
+      ctx.addIssue({ code: "custom", path: ["advisorCpf"], message: "Informe um CPF válido." });
+    }
+    const advisorDigits = cpfDigits(value.advisorCpf);
+    const cpfs = new Set<string>();
+    value.members.forEach((member, index) => {
+      const message = cpfError(member.cpf);
+      if (message) {
+        ctx.addIssue({ code: "custom", path: ["members", index, "cpf"], message });
+        return;
+      }
+      const digits = cpfDigits(member.cpf);
+      if (digits === advisorDigits) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["members", index, "cpf"],
+          message: "O CPF do orientador não entra como integrante.",
+        });
+      }
+      if (cpfs.has(digits)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["members", index, "cpf"],
+          message: "Cada estudante só pode estar uma vez na equipe.",
+        });
+      }
+      cpfs.add(digits);
+      const birth = birthDateError(member.birthDate);
+      if (birth) {
+        ctx.addIssue({ code: "custom", path: ["members", index, "birthDate"], message: birth });
+      }
+    });
+  });
+
+export type RoboticsAdminUpdate = z.infer<typeof roboticsAdminUpdateSchema>;
+
 export function birthDateError(value: string): string | null {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return "Informe a data de nascimento.";
   const [year, month, day] = value.split("-").map(Number);

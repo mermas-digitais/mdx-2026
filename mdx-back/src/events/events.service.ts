@@ -7,7 +7,7 @@ import {
   NotFoundException,
   Logger,
 } from '@nestjs/common';
-import type { ZodError, ZodType } from 'zod';
+import { z, type ZodError, type ZodType } from 'zod';
 import type { AuthUser } from '../server/permissions.js';
 import { canManageEvent } from '../server/permissions.js';
 import {
@@ -31,6 +31,7 @@ import {
 import {
   competitorQuestions,
   cpfDigits,
+  cpfError,
   formFieldPatchSchema,
   formFieldSchema,
   formIssues,
@@ -40,6 +41,7 @@ import {
 } from '../server/form-schema.js';
 import {
   EventsRepository,
+  InscriptionRejected,
   type ActivityRecord,
   type ActivityWrite,
   type AnnouncementRecord,
@@ -117,6 +119,43 @@ export class EventsService {
       participants,
       teams,
     };
+  }
+
+  async updateParticipant(idOrSlug: string, registrationId: string, payload: unknown): Promise<{ ok: true }> {
+    const event = await this.events.findByIdOrSlug(idOrSlug);
+    if (!event) throw new NotFoundException('Evento não encontrado.');
+    const parsed = participantUpdateSchema.safeParse(payload);
+    if (!parsed.success) throw invalid(parsed.error);
+    const data = parsed.data;
+    const cpf = data.cpf.trim() ? cpfDigits(data.cpf) : null;
+    try {
+      const updated = await this.events.updateParticipant(event.id, registrationId, {
+        name: data.name,
+        email: data.email,
+        phone: data.phone,
+        cpf,
+        heard: data.heard,
+      });
+      if (!updated) throw new NotFoundException('Inscrição não encontrada.');
+    } catch (error) {
+      if (error instanceof InscriptionRejected) {
+        throw new BadRequestException({
+          statusCode: 400,
+          message: 'Revise os campos.',
+          fields: error.fields,
+        });
+      }
+      throw error;
+    }
+    return { ok: true };
+  }
+
+  async deleteParticipant(idOrSlug: string, registrationId: string): Promise<{ ok: true }> {
+    const event = await this.events.findByIdOrSlug(idOrSlug);
+    if (!event) throw new NotFoundException('Evento não encontrado.');
+    const removed = await this.events.deleteParticipant(event.id, registrationId);
+    if (!removed) throw new NotFoundException('Inscrição não encontrada.');
+    return { ok: true };
   }
 
   async list(user: AuthUser): Promise<AdminEvent[]> {
@@ -753,6 +792,28 @@ function toActivityWrite(data: {
     grantsStamp: data.grantsStamp ?? false,
   };
 }
+
+const participantUpdateSchema = z
+  .object({
+    name: z.string().trim().min(2, 'Informe o nome.').max(80),
+    email: z
+      .string()
+      .trim()
+      .toLowerCase()
+      .regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, 'Informe um e-mail válido.'),
+    phone: z.string().trim().max(20),
+    cpf: z.string().trim(),
+    heard: z.string().trim().max(80),
+  })
+  .superRefine((value, ctx) => {
+    const digits = value.phone.replace(/\D/g, '').length;
+    if (digits > 0 && digits !== 10 && digits !== 11) {
+      ctx.addIssue({ code: 'custom', path: ['phone'], message: 'Informe o telefone com DDD.' });
+    }
+    if (value.cpf.trim() && cpfError(value.cpf)) {
+      ctx.addIssue({ code: 'custom', path: ['cpf'], message: 'Informe um CPF válido.' });
+    }
+  });
 
 function invalid(error: ZodError): BadRequestException {
   return new BadRequestException({

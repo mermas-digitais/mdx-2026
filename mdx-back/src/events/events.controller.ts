@@ -91,6 +91,25 @@ export class AdminEventsController {
     return this.events.inscriptions(eventId);
   }
 
+  @Patch(':eventId/inscriptions/:registrationId')
+  @RequirePermission((user) => canAccessAdmin(user))
+  updateInscription(
+    @Param('eventId') eventId: string,
+    @Param('registrationId') registrationId: string,
+    @Body() body: unknown,
+  ) {
+    return this.events.updateParticipant(eventId, registrationId, body);
+  }
+
+  @Delete(':eventId/inscriptions/:registrationId')
+  @RequirePermission((user) => canAccessAdmin(user))
+  deleteInscription(
+    @Param('eventId') eventId: string,
+    @Param('registrationId') registrationId: string,
+  ) {
+    return this.events.deleteParticipant(eventId, registrationId);
+  }
+
   @Post()
   @HttpCode(201)
   @RequirePermission((user) => canCreateEvent(user))
@@ -309,6 +328,33 @@ export class AdminEventsController {
   @manage
   roboticsTeams(@Param('eventId') eventId: string) {
     return this.robotics.list(eventId);
+  }
+
+  @Patch(':eventId/robotics-teams/:teamId')
+  @RequirePermission((user) => canAccessAdmin(user))
+  updateRoboticsTeam(
+    @Param('eventId') eventId: string,
+    @Param('teamId') teamId: string,
+    @Body() body: unknown,
+  ) {
+    return this.robotics.adminUpdateTeam(eventId, teamId, body);
+  }
+
+  @Delete(':eventId/robotics-teams/:teamId')
+  @RequirePermission((user) => canAccessAdmin(user))
+  deleteRoboticsTeam(@Param('eventId') eventId: string, @Param('teamId') teamId: string) {
+    return this.robotics.adminDeleteTeam(eventId, teamId);
+  }
+
+  @Post(':eventId/robotics-teams/:teamId/members/:memberId/release')
+  @HttpCode(200)
+  @RequirePermission((user) => canAccessAdmin(user))
+  releaseRoboticsMember(
+    @Param('eventId') eventId: string,
+    @Param('teamId') teamId: string,
+    @Param('memberId') memberId: string,
+  ) {
+    return this.robotics.adminReleaseMember(eventId, teamId, memberId);
   }
 
   @Delete(':eventId/activities/:activityId')

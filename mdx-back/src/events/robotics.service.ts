@@ -9,7 +9,11 @@ import {
   Logger,
 } from '@nestjs/common';
 import { cpfDigits, cpfError, formIssues } from '../server/form-schema.js';
-import { roboticsTeamSchema, roboticsTeamUpdateSchema } from '../server/robotics-schema.js';
+import {
+  roboticsAdminUpdateSchema,
+  roboticsTeamSchema,
+  roboticsTeamUpdateSchema,
+} from '../server/robotics-schema.js';
 import { canManageEvent, type AuthUser } from '../server/permissions.js';
 import { EventsRepository } from './events.repository.js';
 import {
@@ -215,6 +219,64 @@ export class RoboticsService {
     return team;
   }
 
+  async adminUpdateTeam(idOrSlug: string, teamId: string, payload: unknown): Promise<RoboticsTeamView> {
+    const event = await this.eventOf(idOrSlug);
+    const parsed = roboticsAdminUpdateSchema.safeParse(payload);
+    if (!parsed.success) {
+      throw new BadRequestException({
+        statusCode: 400,
+        message: 'Revise os campos.',
+        fields: formIssues(parsed.error),
+      });
+    }
+    const data = parsed.data;
+    try {
+      const updated = await this.robotics.adminUpdateTeam({
+        eventId: event.id,
+        teamId,
+        name: data.teamName,
+        institution: data.institution,
+        advisorName: data.advisorName,
+        advisorEmail: data.advisorEmail,
+        advisorPhone: data.advisorPhone,
+        advisorCpf: cpfDigits(data.advisorCpf),
+        members: data.members.map((member) => ({
+          id: member.id,
+          fullName: member.fullName,
+          cpf: cpfDigits(member.cpf),
+          birthDate: member.birthDate,
+        })),
+      });
+      if (!updated) throw new NotFoundException('Equipe não encontrada.');
+    } catch (error) {
+      if (error instanceof RoboticsRejected) {
+        throw new BadRequestException({
+          statusCode: 400,
+          message: 'Revise os campos.',
+          fields: error.fields,
+        });
+      }
+      throw error;
+    }
+    const team = await this.robotics.teamById(teamId);
+    if (!team) throw new NotFoundException('Equipe não encontrada.');
+    return team;
+  }
+
+  async adminReleaseMember(idOrSlug: string, teamId: string, memberId: string): Promise<{ ok: true }> {
+    const event = await this.eventOf(idOrSlug);
+    const released = await this.robotics.adminReleaseMember(event.id, teamId, memberId);
+    if (!released) throw new NotFoundException('Integrante não encontrada.');
+    return { ok: true };
+  }
+
+  async adminDeleteTeam(idOrSlug: string, teamId: string): Promise<{ ok: true }> {
+    const event = await this.eventOf(idOrSlug);
+    const removed = await this.robotics.adminDeleteTeam(event.id, teamId);
+    if (!removed) throw new NotFoundException('Equipe não encontrada.');
+    return { ok: true };
+  }
+
   async document(slug: string, teamId: string, documentId: string, user: AuthUser): Promise<StoredDocument> {
     const event = await this.visibleEvent(slug);
     const found = await this.robotics.documentOf(teamId, documentId);
@@ -264,6 +326,12 @@ export class RoboticsService {
       throw new ConflictException('Já existe uma conta com esse CPF.');
     }
     return digits;
+  }
+
+  private async eventOf(idOrSlug: string) {
+    const event = await this.events.findByIdOrSlug(idOrSlug);
+    if (!event) throw new NotFoundException('Evento não encontrado.');
+    return event;
   }
 
   private async openEvent(slug: string) {
