@@ -61,9 +61,16 @@ export type ParticipantRecord = {
   phone: string;
   cpf: string;
   heard: string;
+  passportCode: string;
   status: string;
   createdAt: string;
 };
+
+export class InscriptionRejected extends Error {
+  constructor(readonly fields: Record<string, string>) {
+    super('Revise os campos.');
+  }
+}
 
 export type LocationRecord = {
   id: string;
@@ -835,10 +842,12 @@ export class EventsRepository implements OnModuleDestroy {
       phone: string | null;
       heard: string | null;
       cpf: string | null;
+      passport_code: string;
     }>(
       `SELECT r.id,
               r.status,
               r.created_at,
+              r.passport_code,
               r.answers->>'name' AS name,
               r.answers->>'email' AS email,
               r.answers->>'phone' AS phone,
@@ -863,9 +872,91 @@ export class EventsRepository implements OnModuleDestroy {
       phone: row.phone ?? '',
       cpf: row.cpf ?? '',
       heard: row.heard ?? '',
+      passportCode: row.passport_code,
       status: row.status,
       createdAt: new Date(row.created_at).toISOString(),
     }));
+  }
+
+  async updateParticipant(
+    eventId: string,
+    registrationId: string,
+    input: { name: string; email: string; phone: string; cpf: string | null; heard: string },
+  ): Promise<boolean> {
+    if (!UUID.test(eventId) || !UUID.test(registrationId)) return false;
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      const current = await client.query<{ user_id: string }>(
+        `SELECT user_id FROM registrations
+         WHERE id = $1 AND event_id = $2
+         FOR UPDATE`,
+        [registrationId, eventId],
+      );
+      const row = current.rows[0];
+      if (!row) {
+        await client.query('ROLLBACK');
+        return false;
+      }
+
+      const heard = await client.query<{ id: string }>(
+        `SELECT id FROM form_fields
+         WHERE event_id = $1 AND label = 'Como soube do evento'
+         LIMIT 1`,
+        [eventId],
+      );
+      const heardId = heard.rows[0]?.id ?? null;
+
+      try {
+        await client.query(
+          `UPDATE users SET name = $2, email = $3, cpf = $4, updated_at = NOW() WHERE id = $1`,
+          [row.user_id, input.name, input.email, input.cpf],
+        );
+      } catch (error) {
+        const constraint = constraintName(error);
+        if (constraint === 'users_cpf_key') {
+          throw new InscriptionRejected({ cpf: 'Já existe uma conta com esse CPF.' });
+        }
+        if (constraint === 'users_email_key') {
+          throw new InscriptionRejected({ email: 'Já existe uma conta com esse e-mail.' });
+        }
+        throw error;
+      }
+
+      await client.query(
+        `UPDATE robotics_teams
+         SET advisor_email = $3, updated_at = NOW()
+         WHERE advisor_user_id = $1 AND event_id = $2`,
+        [row.user_id, eventId, input.email],
+      );
+      await client.query(
+        `UPDATE registrations
+         SET answers = answers || jsonb_build_object('name', $2::text, 'email', $3::text, 'phone', $4::text)
+           || CASE
+                WHEN $5::text IS NULL THEN '{}'::jsonb
+                ELSE jsonb_build_object($5::text, $6::text)
+              END,
+             updated_at = NOW()
+         WHERE id = $1`,
+        [registrationId, input.name, input.email, input.phone, heardId, input.heard],
+      );
+      await client.query('COMMIT');
+      return true;
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  async deleteParticipant(eventId: string, registrationId: string): Promise<boolean> {
+    if (!UUID.test(eventId) || !UUID.test(registrationId)) return false;
+    const result = await this.pool.query(
+      `DELETE FROM registrations WHERE id = $1 AND event_id = $2`,
+      [registrationId, eventId],
+    );
+    return (result.rowCount ?? 0) > 0;
   }
 
   async createRegistration(input: {
@@ -1025,6 +1116,20 @@ function mapEvent(row: EventSql): EventRecord {
     registrationCount: row.registration_count,
     activityCount: row.activity_count,
   };
+}
+
+function constraintName(error: unknown): string | null {
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    error.code === '23505' &&
+    'constraint' in error &&
+    typeof error.constraint === 'string'
+  ) {
+    return error.constraint;
+  }
+  return null;
 }
 
 function isTeamRole(role: string): role is TeamRole {

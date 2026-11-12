@@ -435,6 +435,7 @@ export type RoboticsMember = {
   accountEmail: string | null;
   accountPhone: string | null;
   accountInstitution: string | null;
+  releasedAt: string | null;
 };
 
 export type RoboticsTeam = {
@@ -446,6 +447,7 @@ export type RoboticsTeam = {
   advisorPhone: string;
   advisorCpf: string;
   withdrawnAt: string | null;
+  createdAt: string;
   members: RoboticsMember[];
   modalities: { modalityId: string; name: string; status: "CONFIRMED" | "WAITLIST" | "CANCELLED" }[];
 };
@@ -525,6 +527,7 @@ export type ParticipantInscription = {
   phone: string;
   cpf: string;
   heard: string;
+  passportCode: string;
   status: string;
   createdAt: string;
 };
@@ -541,6 +544,87 @@ export async function listarInscricoes(
   const user = await currentUser();
   if (!canAccessAdmin(user)) return denied();
   return parse(await authorizedFetch(`/api/admin/events/${encodeURIComponent(slug)}/inscriptions`));
+}
+
+export async function editarInscricao(
+  slug: string,
+  registrationId: string,
+  input: { name: string; email: string; phone: string; cpf: string; heard: string },
+): Promise<Success<InscriptionBoard> | Failure> {
+  const user = await currentUser();
+  if (!canAccessAdmin(user)) return denied();
+  const saved = await parse(await authorizedFetch(
+    `/api/admin/events/${encodeURIComponent(slug)}/inscriptions/${registrationId}`,
+    { method: "PATCH", body: JSON.stringify(input) },
+  ));
+  if (!saved.ok) return saved;
+  return listarInscricoes(slug);
+}
+
+export async function excluirInscricao(
+  slug: string,
+  registrationId: string,
+): Promise<Success<InscriptionBoard> | Failure> {
+  const user = await currentUser();
+  if (!canAccessAdmin(user)) return denied();
+  const removed = await parse(await authorizedFetch(
+    `/api/admin/events/${encodeURIComponent(slug)}/inscriptions/${registrationId}`,
+    { method: "DELETE" },
+  ));
+  if (!removed.ok) return removed;
+  return listarInscricoes(slug);
+}
+
+export async function editarEquipeNoPainel(
+  slug: string,
+  teamId: string,
+  input: {
+    teamName: string;
+    advisorName: string;
+    advisorEmail: string;
+    advisorPhone: string;
+    advisorCpf: string;
+    institution: string;
+    members: { id: string; fullName: string; cpf: string; birthDate: string }[];
+  },
+): Promise<Success<InscriptionBoard> | Failure> {
+  const user = await currentUser();
+  if (!canAccessAdmin(user)) return denied();
+  const saved = await parse(await authorizedFetch(
+    `/api/admin/events/${encodeURIComponent(slug)}/robotics-teams/${teamId}`,
+    { method: "PATCH", body: JSON.stringify(input) },
+  ));
+  if (!saved.ok) return saved;
+  return listarInscricoes(slug);
+}
+
+export async function excluirEquipeNoPainel(
+  slug: string,
+  teamId: string,
+): Promise<Success<InscriptionBoard> | Failure> {
+  const user = await currentUser();
+  if (!canAccessAdmin(user)) return denied();
+  const removed = await parse(await authorizedFetch(
+    `/api/admin/events/${encodeURIComponent(slug)}/robotics-teams/${teamId}`,
+    { method: "DELETE" },
+  ));
+  if (!removed.ok) return removed;
+  return listarInscricoes(slug);
+}
+
+export async function tirarIntegranteNoPainel(
+  slug: string,
+  teamId: string,
+  memberId: string,
+): Promise<Success<InscriptionBoard> | Failure> {
+  const user = await currentUser();
+  if (!canAccessAdmin(user)) return denied();
+  const removed = await parse(await authorizedFetch(
+    `/api/admin/events/${encodeURIComponent(slug)}/robotics-teams/${teamId}/members/${memberId}/release`,
+    { method: "POST" },
+  ));
+  if (!removed.ok) return removed;
+  return listarInscricoes(slug);
 }
 
 export async function listarEquipes(

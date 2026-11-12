@@ -56,6 +56,7 @@ export default async function EquipesPage({
                 <li key={member.id} className="rounded-xl bg-brand-lilac/40 px-3 py-2 text-sm">
                   <p className="font-semibold">{member.fullName}</p>
                   <p>CPF {member.cpf} · nascimento {member.birthDate.split("-").reverse().join("/")}</p>
+                  {member.releasedAt ? <p>Retirada da equipe.</p> : null}
                   <p>
                     {member.linked
                       ? `Conta: ${member.accountName ?? "vinculada"}${member.accountEmail ? ` · ${member.accountEmail}` : ""}${member.accountPhone ? ` · ${member.accountPhone}` : ""}`

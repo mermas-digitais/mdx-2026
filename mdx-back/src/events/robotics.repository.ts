@@ -22,6 +22,7 @@ export type RoboticsMemberView = {
   accountEmail: string | null;
   accountPhone: string | null;
   accountInstitution: string | null;
+  releasedAt: string | null;
 };
 
 export type RoboticsSlotView = {
@@ -95,6 +96,7 @@ type MemberRow = {
   account_email: string | null;
   account_phone: string | null;
   account_institution: string | null;
+  released_at: Date | null;
 };
 
 type SlotRow = {
@@ -562,6 +564,7 @@ export class RoboticsRepository implements OnModuleDestroy {
        WHERE team.event_id = $1
        ORDER BY team.created_at`,
       [eventId],
+      true,
     );
   }
 
@@ -620,18 +623,206 @@ export class RoboticsRepository implements OnModuleDestroy {
     };
   }
 
+  async adminUpdateTeam(input: {
+    eventId: string;
+    teamId: string;
+    name: string;
+    institution: string;
+    advisorName: string;
+    advisorEmail: string;
+    advisorPhone: string;
+    advisorCpf: string;
+    members: { id: string; fullName: string; cpf: string; birthDate: string }[];
+  }): Promise<boolean> {
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      const team = await client.query<{ id: string; advisor_user_id: string }>(
+        `SELECT id, advisor_user_id FROM robotics_teams
+         WHERE id = $1 AND event_id = $2
+         FOR UPDATE`,
+        [input.teamId, input.eventId],
+      );
+      const row = team.rows[0];
+      if (!row) {
+        await client.query('ROLLBACK');
+        return false;
+      }
+
+      const nameTaken = await client.query(
+        `SELECT 1 FROM robotics_teams
+         WHERE event_id = $1 AND withdrawn_at IS NULL AND lower(name) = lower($2) AND id <> $3`,
+        [input.eventId, input.name, input.teamId],
+      );
+      if ((nameTaken.rowCount ?? 0) > 0) {
+        throw new RoboticsRejected({ teamName: 'Já existe uma equipe com esse nome.' });
+      }
+
+      const active = await client.query<{ id: string }>(
+        `SELECT id FROM robotics_team_members
+         WHERE team_id = $1 AND released_at IS NULL
+         FOR UPDATE`,
+        [input.teamId],
+      );
+      const activeIds = new Set(active.rows.map((item) => item.id));
+      const sameMembers =
+        input.members.length === activeIds.size &&
+        input.members.every((member) => activeIds.has(member.id));
+      if (!sameMembers) {
+        throw new RoboticsRejected({ members: 'A lista de integrantes mudou. Atualize a página.' });
+      }
+
+      const memberIds = input.members.map((member) => member.id);
+      for (const [index, member] of input.members.entries()) {
+        const taken = await client.query(
+          `SELECT 1 FROM robotics_team_members
+           WHERE event_id = $1 AND cpf = $2 AND released_at IS NULL AND NOT (id = ANY($3::uuid[]))`,
+          [input.eventId, member.cpf, memberIds],
+        );
+        if ((taken.rowCount ?? 0) > 0) {
+          throw new RoboticsRejected({
+            [`members.${index}.cpf`]: 'Este CPF já está em uma equipe deste evento.',
+          });
+        }
+      }
+
+      try {
+        await client.query(
+          `UPDATE users SET name = $2, email = $3, cpf = $4, updated_at = NOW() WHERE id = $1`,
+          [row.advisor_user_id, input.advisorName, input.advisorEmail, input.advisorCpf],
+        );
+      } catch (error) {
+        const constraint = constraintOf(error);
+        if (constraint === 'users_cpf_key') {
+          throw new RoboticsRejected({ advisorCpf: 'Já existe uma conta com esse CPF.' });
+        }
+        if (constraint === 'users_email_key') {
+          throw new RoboticsRejected({ advisorEmail: 'Já existe uma conta com esse e-mail.' });
+        }
+        throw error;
+      }
+
+      await client.query(
+        `UPDATE robotics_teams
+         SET name = $2, institution = $3, advisor_name = $4, advisor_email = $5,
+             advisor_phone = $6, updated_at = NOW()
+         WHERE id = $1`,
+        [
+          input.teamId,
+          input.name,
+          input.institution,
+          input.advisorName,
+          input.advisorEmail,
+          input.advisorPhone,
+        ],
+      );
+
+      for (const member of input.members) {
+        await client.query(
+          `UPDATE robotics_team_members
+           SET full_name = $3,
+               cpf = $4::varchar,
+               birth_date = $5::date,
+               user_id = (SELECT id FROM users WHERE cpf = $4::varchar)
+           WHERE id = $1 AND team_id = $2 AND released_at IS NULL`,
+          [member.id, input.teamId, member.fullName, member.cpf, member.birthDate],
+        );
+      }
+
+      await client.query('COMMIT');
+      return true;
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  async adminReleaseMember(eventId: string, teamId: string, memberId: string): Promise<boolean> {
+    const result = await this.pool.query(
+      `UPDATE robotics_team_members
+       SET released_at = NOW()
+       WHERE id = $1 AND team_id = $2 AND event_id = $3 AND released_at IS NULL`,
+      [memberId, teamId, eventId],
+    );
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  async adminDeleteTeam(eventId: string, teamId: string): Promise<boolean> {
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      const team = await client.query<{ id: string }>(
+        `SELECT id FROM robotics_teams WHERE id = $1 AND event_id = $2 FOR UPDATE`,
+        [teamId, eventId],
+      );
+      if (!team.rows[0]) {
+        await client.query('ROLLBACK');
+        return false;
+      }
+
+      const confirmed = await client.query<{ modality_id: string }>(
+        `SELECT modality_id FROM robotics_team_modalities
+         WHERE team_id = $1 AND status = 'CONFIRMED'
+         FOR UPDATE`,
+        [teamId],
+      );
+      if (confirmed.rows.length > 0) {
+        await client.query(
+          `SELECT id FROM robotics_modalities WHERE id = ANY($1::uuid[]) FOR UPDATE`,
+          [confirmed.rows.map((row) => row.modality_id)],
+        );
+      }
+      for (const row of confirmed.rows) {
+        await client.query(
+          `UPDATE robotics_team_modalities
+           SET status = 'CONFIRMED', updated_at = NOW()
+           WHERE id = (
+             SELECT entry.id
+             FROM robotics_team_modalities entry
+             JOIN robotics_teams team ON team.id = entry.team_id
+             WHERE entry.modality_id = $1
+               AND entry.status = 'WAITLIST'
+               AND team.withdrawn_at IS NULL
+               AND entry.team_id <> $2
+             ORDER BY entry.created_at, entry.id
+             LIMIT 1
+           )`,
+          [row.modality_id, teamId],
+        );
+      }
+
+      await client.query(`DELETE FROM robotics_team_members WHERE team_id = $1`, [teamId]);
+      await client.query(`DELETE FROM robotics_team_modalities WHERE team_id = $1`, [teamId]);
+      await client.query(`DELETE FROM robotics_teams WHERE id = $1`, [teamId]);
+      await client.query('COMMIT');
+      return true;
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
   async onModuleDestroy(): Promise<void> {
     await this.pool.end();
   }
 
-  private async collect(sql: string, params: unknown[]): Promise<RoboticsTeamView[]> {
+  private async collect(
+    sql: string,
+    params: unknown[],
+    includeReleased = false,
+  ): Promise<RoboticsTeamView[]> {
     const teams = await this.pool.query<TeamRow>(sql, params);
     if (teams.rows.length === 0) return [];
     const ids = teams.rows.map((row) => row.id);
     const [members, slots] = await Promise.all([
       this.pool.query<MemberRow>(
         `SELECT member.id, member.team_id, member.full_name, member.cpf, member.birth_date,
-                member.user_id, account.name AS account_name, account.email AS account_email,
+                member.user_id, member.released_at, account.name AS account_name,
+                account.email AS account_email,
                 registration.answers->>'phone' AS account_phone,
                 NULLIF(registration.answers->>'institution', '') AS account_institution
          FROM robotics_team_members member
@@ -641,9 +832,9 @@ export class RoboticsRepository implements OnModuleDestroy {
           AND registration.event_id = member.event_id
           AND registration.status = 'CONFIRMED'
          WHERE member.team_id = ANY($1::uuid[])
-           AND member.released_at IS NULL
-         ORDER BY member.created_at`,
-        [ids],
+           AND ($2::boolean OR member.released_at IS NULL)
+         ORDER BY member.released_at NULLS FIRST, member.created_at`,
+        [ids, includeReleased],
       ),
       this.pool.query<SlotRow>(
         `SELECT entry.team_id, entry.modality_id, modality.name, entry.status
@@ -678,6 +869,7 @@ export class RoboticsRepository implements OnModuleDestroy {
           accountEmail: member.account_email,
           accountPhone: member.account_phone,
           accountInstitution: member.account_institution,
+          releasedAt: member.released_at ? new Date(member.released_at).toISOString() : null,
         })),
       modalities: slots.rows
         .filter((slot) => slot.team_id === team.id)
