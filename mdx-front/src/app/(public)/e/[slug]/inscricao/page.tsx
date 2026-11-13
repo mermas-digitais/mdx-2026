@@ -24,8 +24,10 @@ export async function generateMetadata({
 
 export default function RegistrationPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ acesso?: string }>;
 }) {
   return (
     <Suspense
@@ -35,17 +37,19 @@ export default function RegistrationPage({
         </main>
       }
     >
-      <RegistrationBody params={params} />
+      <RegistrationBody params={params} searchParams={searchParams} />
     </Suspense>
   );
 }
 
 async function RegistrationBody({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ acesso?: string }>;
 }) {
-  const { slug } = await params;
+  const [{ slug }, query] = await Promise.all([params, searchParams]);
   const [event, session] = await Promise.all([loadEventPage(slug), auth()]);
   if (event === null) notFound();
   if (!event) {
@@ -93,6 +97,7 @@ async function RegistrationBody({
             defaultEmail={session?.user?.email ?? ""}
             accountCpf={profile?.ok ? profile.data.cpf ?? "" : ""}
             teams={teams?.ok ? teams.data : []}
+            startAtTeam={query.acesso === "equipe"}
           />
         </div>
       </div>

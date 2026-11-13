@@ -9,7 +9,7 @@ import { CpfField, PhoneField, formatCpf, inscriptionInputClass } from "@/compon
 import { SteppedRegistration } from "@/components/public/stepped-registration";
 import { TeamRegistration } from "@/components/public/team-registration";
 import { Input } from "@/components/ui/input";
-import { adicionarIntegrante, desistirEquipe, editarEquipe, tirarIntegrante, type RoboticsTeam } from "@/server/events";
+import { adicionarIntegrante, desistirEquipe, editarEquipe, minhasEquipes, tirarIntegrante, type RoboticsTeam } from "@/server/events";
 import { cpfError, type FormFieldConfig } from "@/server/form-schema";
 
 const VERIFIED_STORAGE = "mdx-email-verificado";
@@ -78,6 +78,7 @@ export function InscriptionFlow({
   defaultEmail,
   accountCpf,
   teams,
+  startAtTeam = false,
 }: {
   slug: string;
   fields: FormFieldConfig[];
@@ -88,10 +89,13 @@ export function InscriptionFlow({
   defaultEmail: string;
   accountCpf: string;
   teams: RoboticsTeam[];
+  startAtTeam?: boolean;
 }) {
-  const [path, setPath] = useState<"choose" | "participant" | "team">(
-    modalities.length === 0 ? "participant" : "choose",
+  const loggedIn = defaultEmail.length > 0;
+  const [path, setPath] = useState<"choose" | "participant" | "team" | "access">(
+    startAtTeam ? "access" : modalities.length === 0 ? "participant" : "choose",
   );
+  const [accessReady, setAccessReady] = useState(loggedIn);
   const [mine, setMine] = useState(teams);
   const [fresh, setFresh] = useState<RoboticsTeam | null>(null);
   const [pendingKey, setPendingKey] = useState<string | null>(null);
@@ -108,6 +112,27 @@ export function InscriptionFlow({
   function leaveForm() {
     if (modalities.length > 0) setPath("choose");
     else router.push(`/e/${slug}`);
+  }
+
+  function openAccess() {
+    setNotice(null);
+    setAccessReady(loggedIn);
+    setPath("access");
+  }
+
+  async function revealTeams(next: VerifiedEmail) {
+    setVerified(next);
+    setPendingKey("teams");
+    const result = await minhasEquipes(slug);
+    setPendingKey(null);
+    setAccessReady(true);
+    if (!result.ok) {
+      setMine([]);
+      setNotice("Não há equipe cadastrada com este e-mail. A ficha fica com o orientador.");
+      return;
+    }
+    setMine(result.data);
+    setNotice(result.data.length === 0 ? "Não há equipe cadastrada com este e-mail. A ficha fica com o orientador." : null);
   }
 
   async function checkCpf(cpf: string): Promise<string | null> {
@@ -241,6 +266,52 @@ export function InscriptionFlow({
     );
   }
 
+  if (path === "access" && !accessReady) {
+    return (
+      <div className="flex flex-col gap-4">
+        <button type="button" onClick={() => setPath("choose")} className="text-left text-sm text-[#A398AE]">
+          Voltar
+        </button>
+        <EmailGate onVerified={(next) => void revealTeams(next)} />
+      </div>
+    );
+  }
+
+  if (path === "access") {
+    const advisorEmail = verified?.email || defaultEmail;
+    return (
+      <div className="flex flex-col gap-4">
+        <button type="button" onClick={() => setPath("choose")} className="text-left text-sm text-[#A398AE]">
+          Voltar
+        </button>
+        {pendingKey === "teams" ? <p>Buscando sua equipe…</p> : null}
+        {mine.length > 0 ? (
+          <TeamList
+            teams={mine}
+            pendingKey={pendingKey}
+            notice={notice}
+            onWithdraw={(id) => void withdraw(id)}
+            onRemove={(teamId, memberId) => void removeMember(teamId, memberId)}
+            onAdd={addMember}
+            onSave={saveTeam}
+            closed={closed || preview}
+          />
+        ) : pendingKey === "teams" ? null : (
+          <div className="flex flex-col gap-3">
+            <h2 className="font-heading text-3xl">Sua equipe</h2>
+            <p className="text-sm text-[#4C1D95]">
+              {notice ?? "Não há equipe cadastrada com este e-mail. A ficha fica com o orientador."}
+              {advisorEmail ? ` Conferimos ${advisorEmail}.` : ""}
+            </p>
+            <button type="button" className="text-left font-bold text-[#BE185D] underline" onClick={() => setPath("team")}>
+              Inscrever uma equipe
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   if ((path === "participant" || path === "team") && !verified) {
     return (
       <div className="flex flex-col gap-4">
@@ -313,6 +384,14 @@ export function InscriptionFlow({
         >
           <span className="font-heading text-2xl">Inscrever equipe</span>
           <span className="mt-1 block text-sm">Só o orientador. Caça Balão, Sumô e Corrida com obstáculos.</span>
+        </button>
+        <button
+          type="button"
+          onClick={openAccess}
+          className="rounded-3xl border-4 border-[#330043] bg-white p-5 text-left transition-transform hover:-translate-y-0.5"
+        >
+          <span className="font-heading text-2xl">Acessar minha equipe</span>
+          <span className="mt-1 block text-sm text-[#4C1D95]">Confirmamos o e-mail do orientador e mostramos a equipe cadastrada.</span>
         </button>
       </div>
       {mine.length > 0 ? (
