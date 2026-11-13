@@ -496,6 +496,19 @@ export async function editarEquipe(
   }));
 }
 
+export async function adicionarIntegrante(
+  slug: string,
+  teamId: string,
+  formData: FormData,
+): Promise<Success<RoboticsTeam> | Failure> {
+  const user = await currentUser();
+  if (!user) return { ok: false, status: 401, message: "Entre na sua conta para se inscrever." };
+  return parse(await authorizedFetch(`/api/events/${encodeURIComponent(slug)}/teams/${teamId}/members`, {
+    method: "POST",
+    body: formData,
+  }));
+}
+
 export async function tirarIntegrante(
   slug: string,
   teamId: string,

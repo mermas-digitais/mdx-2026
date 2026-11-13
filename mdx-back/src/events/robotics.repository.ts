@@ -1,6 +1,7 @@
 import { Injectable, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import pg from 'pg';
+import { TEAM_MEMBER_MAX } from '../server/robotics-schema.js';
 
 export type SlotStatus = 'CONFIRMED' | 'WAITLIST' | 'CANCELLED';
 
@@ -409,6 +410,82 @@ export class RoboticsRepository implements OnModuleDestroy {
       return true;
     } catch (error) {
       await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  async addMember(input: {
+    eventId: string;
+    teamId: string;
+    advisorUserId: string;
+    fullName: string;
+    cpf: string;
+    birthDate: string;
+    document: string;
+  }): Promise<boolean> {
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      const team = await client.query<{ id: string }>(
+        `SELECT id FROM robotics_teams
+         WHERE id = $1 AND event_id = $2 AND advisor_user_id = $3 AND withdrawn_at IS NULL
+         FOR UPDATE`,
+        [input.teamId, input.eventId, input.advisorUserId],
+      );
+      if (!team.rows[0]) {
+        await client.query('ROLLBACK');
+        return false;
+      }
+
+      const active = await client.query<{ id: string }>(
+        `SELECT id FROM robotics_team_members
+         WHERE team_id = $1 AND released_at IS NULL
+         FOR UPDATE`,
+        [input.teamId],
+      );
+      if (active.rows.length >= TEAM_MEMBER_MAX) {
+        throw new RoboticsRejected({
+          members: `A equipe pode ter no máximo ${TEAM_MEMBER_MAX} integrantes.`,
+        });
+      }
+
+      const taken = await client.query(
+        `SELECT 1 FROM robotics_team_members
+         WHERE event_id = $1 AND cpf = $2 AND released_at IS NULL`,
+        [input.eventId, input.cpf],
+      );
+      if ((taken.rowCount ?? 0) > 0) {
+        throw new RoboticsRejected({
+          cpf: 'Este CPF já está em uma equipe deste evento.',
+        });
+      }
+
+      await client.query(
+        `INSERT INTO robotics_team_members (
+           id, team_id, event_id, full_name, cpf, birth_date, document, user_id
+         ) VALUES (
+           gen_random_uuid(), $1, $2, $3, $4, $5::date, $6,
+           (SELECT id FROM users WHERE cpf = $4::varchar)
+         )`,
+        [
+          input.teamId,
+          input.eventId,
+          input.fullName,
+          input.cpf,
+          input.birthDate,
+          input.document,
+        ],
+      );
+
+      await client.query('COMMIT');
+      return true;
+    } catch (error) {
+      await client.query('ROLLBACK');
+      if (constraintOf(error) === 'robotics_team_members_event_cpf_active') {
+        throw new RoboticsRejected({ cpf: 'Este CPF já está em uma equipe deste evento.' });
+      }
       throw error;
     } finally {
       client.release();

@@ -9,8 +9,8 @@ import { CpfField, PhoneField, formatCpf, inscriptionInputClass } from "@/compon
 import { SteppedRegistration } from "@/components/public/stepped-registration";
 import { TeamRegistration } from "@/components/public/team-registration";
 import { Input } from "@/components/ui/input";
-import { desistirEquipe, editarEquipe, tirarIntegrante, type RoboticsTeam } from "@/server/events";
-import type { FormFieldConfig } from "@/server/form-schema";
+import { adicionarIntegrante, desistirEquipe, editarEquipe, tirarIntegrante, type RoboticsTeam } from "@/server/events";
+import { cpfError, type FormFieldConfig } from "@/server/form-schema";
 
 const VERIFIED_STORAGE = "mdx-email-verificado";
 const VERIFIED_FOR_MS = 2 * 60 * 60 * 1000;
@@ -169,6 +169,19 @@ export function InscriptionFlow({
     setNotice("Integrante retirada da equipe.");
   }
 
+  async function addMember(teamId: string, formData: FormData): Promise<Record<string, string> | null> {
+    setPendingKey(`add:${teamId}`);
+    const result = await adicionarIntegrante(slug, teamId, formData);
+    setPendingKey(null);
+    if (!result.ok) {
+      setNotice(result.message);
+      return result.fields ?? {};
+    }
+    setMine((current) => current.map((team) => (team.id === result.data.id ? result.data : team)));
+    setNotice("Integrante adicionada.");
+    return null;
+  }
+
   async function saveTeam(
     teamId: string,
     input: {
@@ -309,6 +322,7 @@ export function InscriptionFlow({
           notice={notice}
           onWithdraw={(id) => void withdraw(id)}
           onRemove={(teamId, memberId) => void removeMember(teamId, memberId)}
+          onAdd={addMember}
           onSave={saveTeam}
           closed={closed || preview}
         />
@@ -331,6 +345,7 @@ function TeamList({
   notice,
   onWithdraw,
   onRemove,
+  onAdd,
   onSave,
   closed,
 }: {
@@ -339,6 +354,7 @@ function TeamList({
   notice: string | null;
   onWithdraw: (teamId: string) => void;
   onRemove: (teamId: string, memberId: string) => void;
+  onAdd: (teamId: string, formData: FormData) => Promise<Record<string, string> | null>;
   onSave: (
     teamId: string,
     input: {
@@ -353,6 +369,7 @@ function TeamList({
   closed: boolean;
 }) {
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [addingId, setAddingId] = useState<string | null>(null);
 
   return (
     <section className="flex flex-col gap-3">
@@ -413,12 +430,39 @@ function TeamList({
                 {editable && team.members.length <= 3 ? (
                   <p className="mt-2 text-sm text-[#4C1D95]">A equipe precisa ficar com pelo menos 3 integrantes.</p>
                 ) : null}
-                {editable ? (
+                {editable && addingId === team.id ? (
+                  <AddMemberForm
+                    teamId={team.id}
+                    pending={pendingKey === `add:${team.id}`}
+                    onCancel={() => setAddingId(null)}
+                    onAdd={async (formData) => {
+                      const errors = await onAdd(team.id, formData);
+                      if (!errors) setAddingId(null);
+                      return errors;
+                    }}
+                  />
+                ) : null}
+                {editable && addingId !== team.id ? (
                   <div className="mt-3 flex flex-wrap gap-4">
+                    {team.members.length < 5 ? (
+                      <button
+                        type="button"
+                        className="font-bold text-[#2563EB] underline"
+                        onClick={() => {
+                          setEditingId(null);
+                          setAddingId(team.id);
+                        }}
+                      >
+                        Adicionar integrante
+                      </button>
+                    ) : null}
                     <button
                       type="button"
                       className="font-bold text-[#2563EB] underline"
-                      onClick={() => setEditingId(team.id)}
+                      onClick={() => {
+                        setAddingId(null);
+                        setEditingId(team.id);
+                      }}
                     >
                       Editar dados
                     </button>
@@ -439,6 +483,87 @@ function TeamList({
         );
       })}
     </section>
+  );
+}
+
+function AddMemberForm({
+  teamId,
+  pending,
+  onCancel,
+  onAdd,
+}: {
+  teamId: string;
+  pending: boolean;
+  onCancel: () => void;
+  onAdd: (formData: FormData) => Promise<Record<string, string> | null>;
+}) {
+  const [fullName, setFullName] = useState("");
+  const [cpf, setCpf] = useState("");
+  const [birthDate, setBirthDate] = useState("");
+  const [document, setDocument] = useState<File | null>(null);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  return (
+    <form
+      className="mt-3 flex flex-col gap-3 rounded-2xl bg-[#FFF6FB] p-3"
+      onSubmit={(event) => {
+        event.preventDefault();
+        const found: Record<string, string> = {};
+        if (fullName.trim().length < 2) found.fullName = "Informe o nome da integrante.";
+        if (cpfError(cpf)) found.cpf = "Informe um CPF válido.";
+        if (!birthDate) found.birthDate = "Informe a data de nascimento.";
+        if (!document) found.document = "Envie o documento de vínculo.";
+        if (Object.keys(found).length > 0) {
+          setErrors(found);
+          return;
+        }
+        const body = new FormData();
+        body.set("payload", JSON.stringify({ fullName, cpf, birthDate }));
+        if (document) body.set("document", document);
+        void onAdd(body).then((next) => {
+          if (next) setErrors(next);
+        });
+      }}
+    >
+      <p className="font-heading text-lg">Nova integrante</p>
+      {errors.members ? <p className="text-sm font-semibold text-[#BE185D]">{errors.members}</p> : null}
+      <EditField label="Nome" htmlFor={`add-name-${teamId}`} error={errors.fullName}>
+        <Input id={`add-name-${teamId}`} className={inscriptionInputClass} value={fullName} onChange={(event) => setFullName(event.target.value)} required />
+      </EditField>
+      <EditField label="CPF" htmlFor={`add-cpf-${teamId}`} error={errors.cpf}>
+        <CpfField id={`add-cpf-${teamId}`} value={cpf} onChange={setCpf} invalid={Boolean(errors.cpf)} required />
+      </EditField>
+      <EditField label="Data de nascimento" htmlFor={`add-birth-${teamId}`} error={errors.birthDate}>
+        <Input
+          id={`add-birth-${teamId}`}
+          className={inscriptionInputClass}
+          type="date"
+          value={birthDate}
+          onChange={(event) => setBirthDate(event.target.value)}
+          required
+        />
+      </EditField>
+      <EditField label="Documento de vínculo" htmlFor={`add-doc-${teamId}`} error={errors.document}>
+        <label htmlFor={`add-doc-${teamId}`} className="flex cursor-pointer flex-col gap-1 rounded-2xl border-2 border-dashed border-[#330043] bg-white px-4 py-3">
+          <span className="text-sm font-semibold">{document ? document.name : "Escolher arquivo"}</span>
+          <input
+            id={`add-doc-${teamId}`}
+            type="file"
+            accept="application/pdf,image/jpeg,image/png,image/webp"
+            className="sr-only"
+            onChange={(event) => setDocument(event.target.files?.[0] ?? null)}
+          />
+        </label>
+      </EditField>
+      <div className="flex flex-wrap gap-4">
+        <button type="submit" className="font-bold text-[#2563EB] underline" disabled={pending}>
+          {pending ? "Adicionando…" : "Adicionar"}
+        </button>
+        <button type="button" className="font-bold text-[#4C1D95] underline" disabled={pending} onClick={onCancel}>
+          Cancelar
+        </button>
+      </div>
+    </form>
   );
 }
 

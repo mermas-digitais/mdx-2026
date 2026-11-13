@@ -1,6 +1,10 @@
 import { z } from "zod";
 import { cpfDigits, cpfError } from "./form-schema.js";
 
+export const TEAM_MEMBER_MIN = 3;
+export const TEAM_MEMBER_MAX = 5;
+const memberCountMessage = "A equipe precisa de 3 a 5 integrantes.";
+
 const uuid = z.string().regex(
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
   "Escolha uma modalidade válida.",
@@ -35,8 +39,8 @@ export const roboticsTeamSchema = z
           birthDate: z.string().trim(),
         }),
       )
-      .min(3, "A equipe precisa de 3 a 5 integrantes.")
-      .max(5, "A equipe precisa de 3 a 5 integrantes."),
+      .min(TEAM_MEMBER_MIN, memberCountMessage)
+      .max(TEAM_MEMBER_MAX, memberCountMessage),
     girlsDeclaration: z.boolean(),
     rulesAccepted: z.boolean(),
   })
@@ -120,8 +124,8 @@ export const roboticsTeamUpdateSchema = z
           birthDate: z.string().trim(),
         }),
       )
-      .min(3, "A equipe precisa de 3 a 5 integrantes.")
-      .max(5, "A equipe precisa de 3 a 5 integrantes."),
+      .min(TEAM_MEMBER_MIN, memberCountMessage)
+      .max(TEAM_MEMBER_MAX, memberCountMessage),
   })
   .superRefine((value, ctx) => {
     const phoneDigits = value.advisorPhone.replace(/\D/g, "").length;
@@ -193,7 +197,7 @@ export const roboticsAdminUpdateSchema = z
           birthDate: z.string().trim(),
         }),
       )
-      .max(5, "A equipe precisa de 3 a 5 integrantes."),
+      .max(TEAM_MEMBER_MAX, memberCountMessage),
   })
   .superRefine((value, ctx) => {
     const phoneDigits = value.advisorPhone.replace(/\D/g, "").length;
@@ -235,6 +239,25 @@ export const roboticsAdminUpdateSchema = z
   });
 
 export type RoboticsAdminUpdate = z.infer<typeof roboticsAdminUpdateSchema>;
+
+export const roboticsMemberAddSchema = z
+  .object({
+    fullName: z.string().trim().min(2, "Informe o nome da integrante.").max(80),
+    cpf: z.string().trim(),
+    birthDate: z.string().trim(),
+  })
+  .superRefine((value, ctx) => {
+    const message = cpfError(value.cpf);
+    if (message) {
+      ctx.addIssue({ code: "custom", path: ["cpf"], message });
+    }
+    const birth = birthDateError(value.birthDate);
+    if (birth) {
+      ctx.addIssue({ code: "custom", path: ["birthDate"], message: birth });
+    }
+  });
+
+export type RoboticsMemberAdd = z.infer<typeof roboticsMemberAddSchema>;
 
 export function birthDateError(value: string): string | null {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return "Informe a data de nascimento.";
