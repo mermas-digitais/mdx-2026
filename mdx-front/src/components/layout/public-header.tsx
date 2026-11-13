@@ -7,8 +7,14 @@ export function PublicHeader() {
       <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-2">
         <Logo />
         <Link
+          href="/e/mdx-2026/inscricao?acesso=equipe"
+          className="ml-auto text-sm font-bold text-[#330043] underline decoration-[#FF4A97] underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#330043]"
+        >
+          Minha equipe
+        </Link>
+        <Link
           href="/e/mdx-2026/inscricao"
-          className="mdx-glow-btn ml-auto inline-flex h-10 items-center rounded-full px-4 font-heading text-sm font-bold text-white focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#330043] sm:h-11 sm:px-5 sm:text-base"
+          className="mdx-glow-btn inline-flex h-10 items-center rounded-full px-4 font-heading text-sm font-bold text-white focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#330043] sm:h-11 sm:px-5 sm:text-base"
         >
           Inscreva-se
         </Link>

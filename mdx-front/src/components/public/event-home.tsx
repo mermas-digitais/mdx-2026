@@ -71,6 +71,7 @@ function NotebookScene() {
 
 export function EventHome({ event }: { event: PublicEvent }) {
   const signupHref = `/e/${event.slug}/inscricao`;
+  const teamHref = `${signupHref}?acesso=equipe`;
 
   return (
     <main className="overflow-x-hidden bg-[#FFF7FC] text-[#330043]">
@@ -145,6 +146,12 @@ export function EventHome({ event }: { event: PublicEvent }) {
               className="mdx-glow-btn mt-8 inline-flex h-14 items-center rounded-full px-8 font-heading text-xl font-bold text-[#ffffff] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white"
             >
               quero participar
+            </Link>
+            <Link
+              href={teamHref}
+              className="mt-4 inline-flex h-12 items-center rounded-full border-2 border-white px-6 font-heading text-base font-bold text-white focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white"
+            >
+              acessar minha equipe
             </Link>
           </div>
           <div className="flex w-full min-w-0 flex-col items-center gap-5 md:w-[28rem] md:shrink-0">
@@ -243,12 +250,18 @@ export function EventHome({ event }: { event: PublicEvent }) {
             className="absolute top-1/2 left-1/2 w-[210%] max-w-none -translate-x-1/2 -translate-y-1/2 md:static md:w-full md:translate-none"
           />
         </div>
-        <div className="absolute inset-0 flex items-center justify-center px-4">
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 px-4">
           <Link
             href={signupHref}
             className={`${paytone.className} mdx-inscrever inline-flex items-center rounded-full px-8 py-3 text-lg tracking-wide transition-transform duration-300 hover:scale-105 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white md:px-12 md:py-4 md:text-2xl`}
           >
             QUERO ME INSCREVER
+          </Link>
+          <Link
+            href={teamHref}
+            className="font-heading text-base font-bold text-white underline decoration-white/70 underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white"
+          >
+            acessar minha equipe
           </Link>
         </div>
       </section>
@@ -289,6 +302,12 @@ export function EventHome({ event }: { event: PublicEvent }) {
             className="mdx-glow-btn mt-8 inline-flex h-14 items-center rounded-full px-8 font-heading text-xl font-bold text-[#ffffff] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white"
           >
             quero participar
+          </Link>
+          <Link
+            href={teamHref}
+            className="mt-4 inline-flex h-12 items-center rounded-full border-2 border-white px-6 font-heading text-base font-bold text-white focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white"
+          >
+            acessar minha equipe
           </Link>
         </div>
       </section>
