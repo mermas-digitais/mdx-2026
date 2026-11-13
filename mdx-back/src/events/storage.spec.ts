@@ -2,8 +2,8 @@ import { Readable } from 'node:stream';
 import { EventsService, uploadKey } from './events.service.js';
 import { RoboticsService, documentKey } from './robotics.service.js';
 import { UploadsController } from './events.controller.js';
+import { RoboticsRejected, type RoboticsRepository } from './robotics.repository.js';
 import type { EventsRepository } from './events.repository.js';
-import type { RoboticsRepository } from './robotics.repository.js';
 import type { StorageService } from '../storage/storage.service.js';
 import { cpfFromSeed } from '../server/form-schema.js';
 
@@ -21,6 +21,7 @@ function setup() {
     documentOf: vi.fn().mockResolvedValue({ eventId: id, advisorUserId: user.id, stored: `documents/${id}.pdf` }),
     cpfOf: vi.fn().mockResolvedValue(cpfFromSeed(42)), assignCpf: vi.fn().mockResolvedValue('ok'),
     createTeam: vi.fn().mockRejectedValue(new Error('database failed')),
+    addMember: vi.fn().mockRejectedValue(new Error('database failed')),
   };
   const storage = { put: vi.fn().mockResolvedValue(undefined), delete: vi.fn().mockResolvedValue(undefined), get: vi.fn().mockResolvedValue(Readable.from(png)) };
   const service = new EventsService(events as unknown as EventsRepository, robotics as unknown as RoboticsRepository, storage as unknown as StorageService);
@@ -73,4 +74,27 @@ it('limpa todos os documentos após rejeição do banco', async () => {
   await expect(teams.createTeam('mdx', payload, files, user)).rejects.toThrow('database failed');
   expect(storage.put).toHaveBeenCalledTimes(4);
   expect(storage.delete.mock.calls.map(([key]) => key)).toEqual(storage.put.mock.calls.map(([key]) => key));
+});
+
+it('apaga o documento se a nova integrante não for gravada', async () => {
+  const { teams, robotics, storage } = setup();
+  robotics.addMember.mockRejectedValue(new RoboticsRejected({ members: 'A equipe pode ter no máximo 5 integrantes.' }));
+  const payload = { fullName: 'Bia Nova', cpf: cpfFromSeed(77), birthDate: '2013-08-19' };
+  const files = [{ fieldname: 'document', mimetype: 'image/png', size: png.length, buffer: png }];
+  await expect(teams.addMember('mdx', id, payload, files, user)).rejects.toMatchObject({
+    status: 400,
+    response: { fields: { members: 'A equipe pode ter no máximo 5 integrantes.' } },
+  });
+  expect(storage.delete.mock.calls.map(([key]) => key)).toEqual(storage.put.mock.calls.map(([key]) => key));
+});
+
+it('não grava documento quando a integrante não envia arquivo', async () => {
+  const { teams, robotics, storage } = setup();
+  const payload = { fullName: 'Bia Nova', cpf: cpfFromSeed(77), birthDate: '2013-08-19' };
+  await expect(teams.addMember('mdx', id, payload, [], user)).rejects.toMatchObject({
+    status: 400,
+    response: { fields: { document: 'Envie o documento de vínculo em PDF ou imagem, até 5 MB.' } },
+  });
+  expect(storage.put).not.toHaveBeenCalled();
+  expect(robotics.addMember).not.toHaveBeenCalled();
 });

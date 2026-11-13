@@ -454,6 +454,21 @@ export class PublicEventsController {
     return this.robotics.updateTeam(slug, teamId, body, request.user);
   }
 
+  @Post(':slug/teams/:teamId/members')
+  @HttpCode(201)
+  @UseGuards(AuthGuard)
+  @UseFilters(DocumentExceptionFilter)
+  @UseInterceptors(AnyFilesInterceptor({ limits: { fileSize: 5 * 1024 * 1024, files: 1 } }))
+  addMember(
+    @Param('slug') slug: string,
+    @Param('teamId') teamId: string,
+    @Body() body: { payload?: unknown },
+    @UploadedFiles() files: IncomingFile[] | undefined,
+    @Req() request: AuthedRequest,
+  ) {
+    return this.robotics.addMember(slug, teamId, body?.payload, files ?? [], request.user);
+  }
+
   @Post(':slug/teams/:teamId/members/:memberId/release')
   @HttpCode(200)
   @UseGuards(AuthGuard)

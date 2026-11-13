@@ -11,6 +11,7 @@ import {
 import { cpfDigits, cpfError, formIssues } from '../server/form-schema.js';
 import {
   roboticsAdminUpdateSchema,
+  roboticsMemberAddSchema,
   roboticsTeamSchema,
   roboticsTeamUpdateSchema,
 } from '../server/robotics-schema.js';
@@ -175,6 +176,74 @@ export class RoboticsService {
       });
       if (!updated) throw new NotFoundException('Equipe não encontrada.');
     } catch (error) {
+      if (error instanceof RoboticsRejected) {
+        throw new BadRequestException({
+          statusCode: 400,
+          message: 'Revise os campos.',
+          fields: error.fields,
+        });
+      }
+      throw error;
+    }
+    const team = await this.robotics.teamById(teamId);
+    if (!team) throw new NotFoundException('Equipe não encontrada.');
+    return team;
+  }
+
+  async addMember(
+    slug: string,
+    teamId: string,
+    payload: unknown,
+    files: IncomingFile[],
+    user: AuthUser,
+  ): Promise<RoboticsTeamView> {
+    const event = await this.openEvent(slug);
+    const parsed = roboticsMemberAddSchema.safeParse(parsePayload(payload));
+    if (!parsed.success) {
+      throw new BadRequestException({
+        statusCode: 400,
+        message: 'Revise os campos.',
+        fields: formIssues(parsed.error),
+      });
+    }
+    const data = parsed.data;
+    const cpf = cpfDigits(data.cpf);
+    const advisorCpf = await this.robotics.cpfOf(user.id);
+    if (advisorCpf && cpf === advisorCpf) {
+      throw new BadRequestException({
+        statusCode: 400,
+        message: 'Revise os campos.',
+        fields: { cpf: 'O CPF do orientador não entra como integrante.' },
+      });
+    }
+
+    const file = files.find((item) => item.fieldname === 'document');
+    if (!file || !documentKind(file.buffer)) {
+      throw new BadRequestException({
+        statusCode: 400,
+        message: 'Revise os campos.',
+        fields: { document: 'Envie o documento de vínculo em PDF ou imagem, até 5 MB.' },
+      });
+    }
+
+    const written: string[] = [];
+    try {
+      const document = await this.storeDocument(file.buffer, written);
+      const added = await this.robotics.addMember({
+        eventId: event.id,
+        teamId,
+        advisorUserId: user.id,
+        fullName: data.fullName,
+        cpf,
+        birthDate: data.birthDate,
+        document,
+      });
+      if (!added) throw new NotFoundException('Equipe não encontrada.');
+    } catch (error) {
+      const cleanup = await Promise.allSettled(written.map((key) => this.storage.delete(key)));
+      if (cleanup.some((result) => result.status === 'rejected')) {
+        this.logger.warn('Falha ao limpar documentos órfãos.');
+      }
       if (error instanceof RoboticsRejected) {
         throw new BadRequestException({
           statusCode: 400,
