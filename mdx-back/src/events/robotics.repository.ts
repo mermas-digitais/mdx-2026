@@ -883,8 +883,265 @@ export class RoboticsRepository implements OnModuleDestroy {
     }
   }
 
+  async adminCreateTeam(input: {
+    eventId: string;
+    name: string;
+    institution: string;
+    advisorName: string;
+    advisorEmail: string;
+    advisorPhone: string;
+    advisorCpf: string;
+    passwordHash: string;
+    modalityIds: string[];
+    status: 'CONFIRMED' | 'WAITLIST';
+  }): Promise<string> {
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      const locked = await client.query<{ id: string }>(
+        `SELECT id FROM robotics_modalities
+         WHERE event_id = $1 AND id = ANY($2::uuid[])
+         FOR UPDATE`,
+        [input.eventId, input.modalityIds],
+      );
+      if (locked.rows.length !== new Set(input.modalityIds).size) {
+        throw new RoboticsRejected({ modalityIds: 'Escolha modalidades deste evento.' });
+      }
+
+      const nameTaken = await client.query(
+        `SELECT 1 FROM robotics_teams
+         WHERE event_id = $1 AND withdrawn_at IS NULL AND lower(name) = lower($2)`,
+        [input.eventId, input.name],
+      );
+      if ((nameTaken.rowCount ?? 0) > 0) {
+        throw new RoboticsRejected({ teamName: 'Já existe uma equipe com esse nome.' });
+      }
+
+      const byEmail = await client.query<{ id: string; cpf: string | null }>(
+        `SELECT id, cpf FROM users WHERE lower(email) = $1 FOR UPDATE`,
+        [input.advisorEmail],
+      );
+      let advisorUserId = byEmail.rows[0]?.id;
+      if (advisorUserId) {
+        const currentCpf = byEmail.rows[0]?.cpf;
+        if (currentCpf && currentCpf !== input.advisorCpf) {
+          throw new RoboticsRejected({ advisorCpf: 'O CPF da conta é outro.' });
+        }
+        if (!currentCpf) {
+          await client.query(`UPDATE users SET cpf = $2, updated_at = NOW() WHERE id = $1`, [
+            advisorUserId,
+            input.advisorCpf,
+          ]);
+        }
+      } else {
+        const byCpf = await client.query(
+          `SELECT 1 FROM users WHERE cpf = $1`,
+          [input.advisorCpf],
+        );
+        if ((byCpf.rowCount ?? 0) > 0) {
+          throw new RoboticsRejected({ advisorCpf: 'Já existe uma conta com esse CPF.' });
+        }
+        const createdUser = await client.query<{ id: string }>(
+          `INSERT INTO users (id, name, email, cpf, password_hash, role, updated_at)
+           VALUES (gen_random_uuid(), $1, $2, $3, $4, 'USER', NOW())
+           RETURNING id`,
+          [input.advisorName, input.advisorEmail, input.advisorCpf, input.passwordHash],
+        );
+        const createdId = createdUser.rows[0]?.id;
+        if (!createdId) throw new Error('Não foi possível criar a conta do orientador.');
+        advisorUserId = createdId;
+      }
+
+      const inserted = await client.query<{ id: string }>(
+        `INSERT INTO robotics_teams (
+           id, event_id, advisor_user_id, name, institution,
+           advisor_name, advisor_email, advisor_phone, advisor_document,
+           rules_accepted_at, updated_at
+         ) VALUES (
+           gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, '', NOW(), NOW()
+         ) RETURNING id`,
+        [
+          input.eventId,
+          advisorUserId,
+          input.name,
+          input.institution,
+          input.advisorName,
+          input.advisorEmail,
+          input.advisorPhone,
+        ],
+      );
+      const teamId = inserted.rows[0]?.id;
+      if (!teamId) throw new Error('Não foi possível criar a equipe.');
+
+      for (const modalityId of input.modalityIds) {
+        await client.query(
+          `INSERT INTO robotics_team_modalities (
+             id, team_id, modality_id, status, updated_at
+           ) VALUES (gen_random_uuid(), $1, $2, $3::"RoboticsSlotStatus", NOW())`,
+          [teamId, modalityId, input.status],
+        );
+      }
+
+      await client.query('COMMIT');
+      return teamId;
+    } catch (error) {
+      await client.query('ROLLBACK');
+      const constraint = constraintOf(error);
+      if (constraint === 'robotics_teams_event_name_active') {
+        throw new RoboticsRejected({ teamName: 'Já existe uma equipe com esse nome.' });
+      }
+      if (constraint === 'users_cpf_key') {
+        throw new RoboticsRejected({ advisorCpf: 'Já existe uma conta com esse CPF.' });
+      }
+      if (constraint === 'users_email_key') {
+        throw new RoboticsRejected({ advisorEmail: 'Já existe uma conta com esse e-mail.' });
+      }
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  async adminSetModality(input: {
+    eventId: string;
+    teamId: string;
+    modalityId: string;
+    status: 'CONFIRMED' | 'WAITLIST';
+  }): Promise<boolean> {
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      const team = await client.query<{ withdrawn_at: Date | null }>(
+        `SELECT withdrawn_at FROM robotics_teams
+         WHERE id = $1 AND event_id = $2
+         FOR UPDATE`,
+        [input.teamId, input.eventId],
+      );
+      const row = team.rows[0];
+      if (!row) {
+        await client.query('ROLLBACK');
+        return false;
+      }
+      if (row.withdrawn_at) {
+        throw new RoboticsRejected({ modalityId: 'A equipe desistiu. Inclua outra equipe.' });
+      }
+      const modality = await client.query(
+        `SELECT id FROM robotics_modalities WHERE id = $1 AND event_id = $2 FOR UPDATE`,
+        [input.modalityId, input.eventId],
+      );
+      if (!modality.rows[0]) {
+        throw new RoboticsRejected({ modalityId: 'Escolha uma modalidade deste evento.' });
+      }
+
+      const current = await client.query<{ id: string; status: SlotStatus }>(
+        `SELECT id, status FROM robotics_team_modalities
+         WHERE team_id = $1 AND modality_id = $2
+         FOR UPDATE`,
+        [input.teamId, input.modalityId],
+      );
+      const existing = current.rows[0];
+      if (existing?.status === 'CONFIRMED' && input.status === 'WAITLIST') {
+        await client.query(
+          `UPDATE robotics_team_modalities
+           SET status = 'WAITLIST', updated_at = NOW()
+           WHERE id = $1`,
+          [existing.id],
+        );
+        await this.promoteWaitlist(client, input.modalityId, input.teamId);
+      } else if (existing) {
+        await client.query(
+          `UPDATE robotics_team_modalities
+           SET status = $2::"RoboticsSlotStatus", updated_at = NOW()
+           WHERE id = $1`,
+          [existing.id, input.status],
+        );
+      } else {
+        await client.query(
+          `INSERT INTO robotics_team_modalities (
+             id, team_id, modality_id, status, updated_at
+           ) VALUES (gen_random_uuid(), $1, $2, $3::"RoboticsSlotStatus", NOW())`,
+          [input.teamId, input.modalityId, input.status],
+        );
+      }
+
+      await client.query('COMMIT');
+      return true;
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  async adminRemoveModality(eventId: string, teamId: string, modalityId: string): Promise<boolean> {
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      const team = await client.query<{ id: string }>(
+        `SELECT id FROM robotics_teams
+         WHERE id = $1 AND event_id = $2 AND withdrawn_at IS NULL
+         FOR UPDATE`,
+        [teamId, eventId],
+      );
+      if (!team.rows[0]) {
+        await client.query('ROLLBACK');
+        return false;
+      }
+      await client.query(
+        `SELECT id FROM robotics_modalities WHERE id = $1 AND event_id = $2 FOR UPDATE`,
+        [modalityId, eventId],
+      );
+      const current = await client.query<{ id: string; status: SlotStatus }>(
+        `SELECT id, status FROM robotics_team_modalities
+         WHERE team_id = $1 AND modality_id = $2
+         FOR UPDATE`,
+        [teamId, modalityId],
+      );
+      const existing = current.rows[0];
+      if (!existing) {
+        await client.query('ROLLBACK');
+        return false;
+      }
+      await client.query(`DELETE FROM robotics_team_modalities WHERE id = $1`, [existing.id]);
+      if (existing.status === 'CONFIRMED') {
+        await this.promoteWaitlist(client, modalityId, teamId);
+      }
+      await client.query('COMMIT');
+      return true;
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
   async onModuleDestroy(): Promise<void> {
     await this.pool.end();
+  }
+
+  private async promoteWaitlist(
+    client: pg.PoolClient,
+    modalityId: string,
+    exceptTeamId: string,
+  ): Promise<void> {
+    await client.query(
+      `UPDATE robotics_team_modalities
+       SET status = 'CONFIRMED', updated_at = NOW()
+       WHERE id = (
+         SELECT entry.id
+         FROM robotics_team_modalities entry
+         JOIN robotics_teams team ON team.id = entry.team_id
+         WHERE entry.modality_id = $1
+           AND entry.status = 'WAITLIST'
+           AND team.withdrawn_at IS NULL
+           AND entry.team_id <> $2
+         ORDER BY entry.created_at, entry.id
+         LIMIT 1
+       )`,
+      [modalityId, exceptTeamId],
+    );
   }
 
   private async collect(

@@ -107,17 +107,20 @@ export class EventsService {
     event: { id: string; slug: string; title: string };
     participants: ParticipantRecord[];
     teams: Awaited<ReturnType<RoboticsRepository['teamsForEvent']>>;
+    modalities: Awaited<ReturnType<RoboticsRepository['vacancies']>>;
   }> {
     const event = await this.events.findByIdOrSlug(idOrSlug);
     if (!event) throw new NotFoundException('Evento não encontrado.');
-    const [participants, teams] = await Promise.all([
+    const [participants, teams, modalities] = await Promise.all([
       this.events.listParticipants(event.id),
       this.robotics.teamsForEvent(event.id),
+      this.robotics.vacancies(event.id),
     ]);
     return {
       event: { id: event.id, slug: event.slug, title: event.title },
       participants,
       teams,
+      modalities,
     };
   }
 

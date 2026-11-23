@@ -545,10 +545,19 @@ export type ParticipantInscription = {
   createdAt: string;
 };
 
+export type ModalityVacancy = {
+  id: string;
+  name: string;
+  slotLimit: number;
+  confirmed: number;
+  waitlist: number;
+};
+
 export type InscriptionBoard = {
   event: { id: string; slug: string; title: string };
   participants: ParticipantInscription[];
   teams: RoboticsTeam[];
+  modalities: ModalityVacancy[];
 };
 
 export async function listarInscricoes(
@@ -608,6 +617,59 @@ export async function editarEquipeNoPainel(
     { method: "PATCH", body: JSON.stringify(input) },
   ));
   if (!saved.ok) return saved;
+  return listarInscricoes(slug);
+}
+
+export async function incluirEquipeNoPainel(
+  slug: string,
+  input: {
+    teamName: string;
+    institution: string;
+    advisorName: string;
+    advisorEmail: string;
+    advisorPhone: string;
+    advisorCpf: string;
+    modalityIds: string[];
+    status: "CONFIRMED" | "WAITLIST";
+  },
+): Promise<Success<InscriptionBoard> | Failure> {
+  const user = await currentUser();
+  if (!canAccessAdmin(user)) return denied();
+  const saved = await parse(await authorizedFetch(
+    `/api/admin/events/${encodeURIComponent(slug)}/robotics-teams`,
+    { method: "POST", body: JSON.stringify(input) },
+  ));
+  if (!saved.ok) return saved;
+  return listarInscricoes(slug);
+}
+
+export async function colocarEquipeNaModalidade(
+  slug: string,
+  teamId: string,
+  input: { modalityId: string; status: "CONFIRMED" | "WAITLIST" },
+): Promise<Success<InscriptionBoard> | Failure> {
+  const user = await currentUser();
+  if (!canAccessAdmin(user)) return denied();
+  const saved = await parse(await authorizedFetch(
+    `/api/admin/events/${encodeURIComponent(slug)}/robotics-teams/${teamId}/modalities`,
+    { method: "POST", body: JSON.stringify(input) },
+  ));
+  if (!saved.ok) return saved;
+  return listarInscricoes(slug);
+}
+
+export async function tirarEquipeDaModalidade(
+  slug: string,
+  teamId: string,
+  modalityId: string,
+): Promise<Success<InscriptionBoard> | Failure> {
+  const user = await currentUser();
+  if (!canAccessAdmin(user)) return denied();
+  const removed = await parse(await authorizedFetch(
+    `/api/admin/events/${encodeURIComponent(slug)}/robotics-teams/${teamId}/modalities/${modalityId}`,
+    { method: "DELETE" },
+  ));
+  if (!removed.ok) return removed;
   return listarInscricoes(slug);
 }
 
