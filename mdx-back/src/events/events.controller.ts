@@ -330,6 +330,34 @@ export class AdminEventsController {
     return this.robotics.list(eventId);
   }
 
+  @Post(':eventId/robotics-teams')
+  @HttpCode(201)
+  @RequirePermission((user) => canAccessAdmin(user))
+  createRoboticsTeam(@Param('eventId') eventId: string, @Body() body: unknown) {
+    return this.robotics.adminCreateTeam(eventId, body);
+  }
+
+  @Post(':eventId/robotics-teams/:teamId/modalities')
+  @HttpCode(200)
+  @RequirePermission((user) => canAccessAdmin(user))
+  placeRoboticsTeam(
+    @Param('eventId') eventId: string,
+    @Param('teamId') teamId: string,
+    @Body() body: unknown,
+  ) {
+    return this.robotics.adminSetModality(eventId, teamId, body);
+  }
+
+  @Delete(':eventId/robotics-teams/:teamId/modalities/:modalityId')
+  @RequirePermission((user) => canAccessAdmin(user))
+  removeRoboticsModality(
+    @Param('eventId') eventId: string,
+    @Param('teamId') teamId: string,
+    @Param('modalityId') modalityId: string,
+  ) {
+    return this.robotics.adminRemoveModality(eventId, teamId, modalityId);
+  }
+
   @Patch(':eventId/robotics-teams/:teamId')
   @RequirePermission((user) => canAccessAdmin(user))
   updateRoboticsTeam(

@@ -1,5 +1,5 @@
 import { cpfError, cpfFromSeed } from './form-schema.js';
-import { roboticsMemberAddSchema, roboticsTeamSchema } from './robotics-schema.js';
+import { roboticsAdminCreateSchema, roboticsMemberAddSchema, roboticsTeamSchema } from './robotics-schema.js';
 
 const modality = '11111111-1111-4111-8111-111111111111';
 
@@ -41,5 +41,21 @@ describe('inscrição de equipe', () => {
   it('gera CPF válido', () => {
     expect(cpfError(cpfFromSeed(42))).toBeNull();
     expect(cpfError('11111111111')).toBe('Informe um CPF válido.');
+  });
+
+  it('aceita a equipe incluída pelo admin na modalidade escolhida', () => {
+    const input = {
+      teamName: 'Íris',
+      advisorName: 'Ana Orientadora',
+      advisorEmail: 'ana@escola.br',
+      advisorPhone: '98999999999',
+      advisorCpf: cpfFromSeed(42),
+      institution: 'IFMA',
+      modalityIds: [modality],
+      status: 'CONFIRMED',
+    };
+    expect(roboticsAdminCreateSchema.safeParse(input).success).toBe(true);
+    expect(roboticsAdminCreateSchema.safeParse({ ...input, modalityIds: [] }).success).toBe(false);
+    expect(roboticsAdminCreateSchema.safeParse({ ...input, status: 'CANCELLED' }).success).toBe(false);
   });
 });

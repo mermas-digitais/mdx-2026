@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import type { Readable } from 'node:stream';
 import path from 'node:path';
 import {
@@ -8,8 +8,11 @@ import {
   NotFoundException,
   Logger,
 } from '@nestjs/common';
+import bcrypt from 'bcrypt';
 import { cpfDigits, cpfError, formIssues } from '../server/form-schema.js';
 import {
+  roboticsAdminCreateSchema,
+  roboticsAdminModalitySchema,
   roboticsAdminUpdateSchema,
   roboticsMemberAddSchema,
   roboticsTeamSchema,
@@ -25,6 +28,7 @@ import {
 import { StorageService } from '../storage/storage.service.js';
 
 const DOCUMENT_MAX = 5 * 1024 * 1024;
+const HASH_ROUNDS = 12;
 
 export type IncomingFile = {
   fieldname: string;
@@ -343,6 +347,82 @@ export class RoboticsService {
     const event = await this.eventOf(idOrSlug);
     const removed = await this.robotics.adminDeleteTeam(event.id, teamId);
     if (!removed) throw new NotFoundException('Equipe não encontrada.');
+    return { ok: true };
+  }
+
+  async adminCreateTeam(idOrSlug: string, payload: unknown): Promise<{ ok: true }> {
+    const event = await this.eventOf(idOrSlug);
+    const parsed = roboticsAdminCreateSchema.safeParse(payload);
+    if (!parsed.success) {
+      throw new BadRequestException({
+        statusCode: 400,
+        message: 'Revise os campos.',
+        fields: formIssues(parsed.error),
+      });
+    }
+    const data = parsed.data;
+    const passwordHash = await bcrypt.hash(randomBytes(24).toString('base64url'), HASH_ROUNDS);
+    try {
+      await this.robotics.adminCreateTeam({
+        eventId: event.id,
+        name: data.teamName,
+        institution: data.institution,
+        advisorName: data.advisorName,
+        advisorEmail: data.advisorEmail,
+        advisorPhone: data.advisorPhone,
+        advisorCpf: cpfDigits(data.advisorCpf),
+        passwordHash,
+        modalityIds: data.modalityIds,
+        status: data.status,
+      });
+    } catch (error) {
+      if (error instanceof RoboticsRejected) {
+        throw new BadRequestException({
+          statusCode: 400,
+          message: 'Revise os campos.',
+          fields: error.fields,
+        });
+      }
+      throw error;
+    }
+    return { ok: true };
+  }
+
+  async adminSetModality(idOrSlug: string, teamId: string, payload: unknown): Promise<{ ok: true }> {
+    const event = await this.eventOf(idOrSlug);
+    const parsed = roboticsAdminModalitySchema.safeParse(payload);
+    if (!parsed.success) {
+      throw new BadRequestException({
+        statusCode: 400,
+        message: 'Revise os campos.',
+        fields: formIssues(parsed.error),
+      });
+    }
+    try {
+      const placed = await this.robotics.adminSetModality({
+        eventId: event.id,
+        teamId,
+        modalityId: parsed.data.modalityId,
+        status: parsed.data.status,
+      });
+      if (!placed) throw new NotFoundException('Equipe não encontrada.');
+    } catch (error) {
+      if (error instanceof RoboticsRejected) {
+        throw new BadRequestException({
+          statusCode: 400,
+          message: 'Revise os campos.',
+          fields: error.fields,
+        });
+      }
+      throw error;
+    }
+    return { ok: true };
+  }
+
+  async adminRemoveModality(idOrSlug: string, teamId: string, modalityId: string): Promise<{ ok: true }> {
+    const event = await this.eventOf(idOrSlug);
+    const removed = await this.robotics.adminRemoveModality(event.id, teamId, modalityId);
+    if (!removed) throw new NotFoundException('Modalidade não encontrada nesta equipe.');
     return { ok: true };
   }
 

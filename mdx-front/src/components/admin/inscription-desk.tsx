@@ -2,14 +2,19 @@
 
 import { useEffect, useMemo, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
 import { useRouter } from "next/navigation";
-import { formatCpf } from "@/components/public/masked-fields";
+import { formatCpf, formatPhone } from "@/components/public/masked-fields";
+import { buildPdf, downloadPdf } from "@/lib/list-pdf";
 import {
+  colocarEquipeNaModalidade,
   editarEquipeNoPainel,
   editarInscricao,
   excluirEquipeNoPainel,
   excluirInscricao,
+  incluirEquipeNoPainel,
+  tirarEquipeDaModalidade,
   tirarIntegranteNoPainel,
   type InscriptionBoard,
+  type ModalityVacancy,
   type ParticipantInscription,
   type RoboticsTeam,
 } from "@/server/events";
@@ -28,7 +33,7 @@ const fieldClass =
 export function InscriptionDesk({ initial }: { initial: InscriptionBoard }) {
   const router = useRouter();
   const [board, setBoard] = useState(initial);
-  const [tab, setTab] = useState<"people" | "teams">("teams");
+  const [tab, setTab] = useState<"people" | "teams" | "advisors">("teams");
   const [query, setQuery] = useState("");
   const [heard, setHeard] = useState("todas");
   const [personFrom, setPersonFrom] = useState("");
@@ -41,6 +46,7 @@ export function InscriptionDesk({ initial }: { initial: InscriptionBoard }) {
   const [teamFrom, setTeamFrom] = useState("");
   const [teamTo, setTeamTo] = useState("");
   const [teamView, setTeamView] = useState<"equipes" | "alunas">("equipes");
+  const [adding, setAdding] = useState(false);
   const [openTeamId, setOpenTeamId] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [pending, setPending] = useState<string | null>(null);
@@ -58,12 +64,14 @@ export function InscriptionDesk({ initial }: { initial: InscriptionBoard }) {
     [board.teams, query, modality, slot, teamState, size, account, teamFrom, teamTo],
   );
   const modalityNames = useMemo(() => {
-    const names = new Set<string>();
+    const names = (board.modalities ?? []).map((item) => item.name);
     for (const team of board.teams) {
-      for (const item of team.modalities) names.add(item.name);
+      for (const item of team.modalities) {
+        if (!names.includes(item.name)) names.push(item.name);
+      }
     }
-    return [...names];
-  }, [board.teams]);
+    return names;
+  }, [board.modalities, board.teams]);
   const heardOptions = useMemo(() => {
     const values = new Set(HEARD);
     for (const person of board.participants) if (person.heard) values.add(person.heard);
@@ -73,6 +81,8 @@ export function InscriptionDesk({ initial }: { initial: InscriptionBoard }) {
     () => teams.flatMap((team) => activeMembers(team).map((member) => ({ member, team }))),
     [teams],
   );
+  const advisorTotal = useMemo(() => listAdvisors(board.teams, "").length, [board.teams]);
+  const advisors = useMemo(() => listAdvisors(board.teams, tab === "advisors" ? query : ""), [board.teams, query, tab]);
   const openTeam = board.teams.find((team) => team.id === openTeamId) ?? null;
 
   function apply(next: InscriptionBoard, message: string) {
@@ -89,11 +99,14 @@ export function InscriptionDesk({ initial }: { initial: InscriptionBoard }) {
           <h1 className="font-heading text-3xl">Inscrições</h1>
         </div>
         <div className="flex flex-wrap gap-2">
-          <button type="button" className={quietButton} onClick={() => exportPeople(people)}>
-            Exportar participantes
+          <button type="button" className={quietButton} onClick={() => exportPeoplePdf(board.event.title, people)}>
+            PDF dos participantes
           </button>
-          <button type="button" className={quietButton} onClick={() => exportTeams(teams)}>
-            Exportar equipes
+          <button type="button" className={quietButton} onClick={() => exportTeamsPdf(board.event.title, teams, modality, slot, modalityNames)}>
+            PDF das equipes
+          </button>
+          <button type="button" className={quietButton} onClick={() => exportAdvisorsPdf(board.event.title, advisors)}>
+            PDF dos orientadores
           </button>
         </div>
       </header>
@@ -101,6 +114,7 @@ export function InscriptionDesk({ initial }: { initial: InscriptionBoard }) {
       <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Stat label="Participantes" value={board.participants.length} />
         <Stat label="Equipes ativas" value={board.teams.filter((team) => !team.withdrawnAt).length} />
+        <Stat label="Orientadores" value={advisorTotal} />
         <Stat label="Alunas nas equipes" value={girls.length} />
         {modalityNames.map((name) => (
           <Stat
@@ -115,6 +129,7 @@ export function InscriptionDesk({ initial }: { initial: InscriptionBoard }) {
 
       <div className="flex flex-wrap gap-2">
         <TabButton current={tab} value="teams" onClick={setTab}>Equipes de robótica</TabButton>
+        <TabButton current={tab} value="advisors" onClick={setTab}>Orientadores</TabButton>
         <TabButton current={tab} value="people" onClick={setTab}>Participantes</TabButton>
       </div>
 
@@ -123,12 +138,31 @@ export function InscriptionDesk({ initial }: { initial: InscriptionBoard }) {
         <input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder={tab === "people" ? "Nome, e-mail, telefone ou CPF" : "Equipe, escola, orientador, aluna ou CPF"}
+          placeholder={tab === "people" ? "Nome, e-mail, telefone ou CPF" : tab === "advisors" ? "Nome, e-mail, telefone ou equipe" : "Equipe, escola, orientador, aluna ou CPF"}
           className={fieldClass}
         />
       </label>
 
-      {tab === "people" ? (
+      {tab === "advisors" ? (
+        <>
+          <p className="text-sm text-[#7A6B86]">
+            {advisors.length} {advisors.length === 1 ? "orientador" : "orientadores"}, cada um uma vez
+          </p>
+          {advisors.length === 0 ? <Empty>Nenhum orientador com esses filtros.</Empty> : null}
+          <ul className="flex flex-col gap-2">
+            {advisors.map((advisor) => (
+              <li key={advisor.key} className="rounded-2xl bg-white px-4 py-3">
+                <h2 className="font-heading text-xl">{advisor.name}</h2>
+                <p className="mt-1 text-sm">{advisor.email} · {formatPhone(advisor.phone) || advisor.phone}</p>
+                <p className="mt-1 text-sm text-[#7A6B86]">
+                  {advisor.teams.length} {advisor.teams.length === 1 ? "equipe" : "equipes"}: {advisor.teams.join(", ")}
+                </p>
+                <p className="text-sm text-[#7A6B86]">{advisor.institutions.join(", ")}</p>
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : tab === "people" ? (
         <>
           <div className="grid gap-3 sm:grid-cols-3">
             <Select label="Como soube" value={heard} onChange={setHeard}>
@@ -173,8 +207,30 @@ export function InscriptionDesk({ initial }: { initial: InscriptionBoard }) {
         <TeamSheet
           team={openTeam}
           slug={board.event.slug}
+          modalities={board.modalities ?? []}
           pending={pending}
           onBack={() => setOpenTeamId(null)}
+          onPlace={async (modalityId, status) => {
+            setPending(`modality:${modalityId}`);
+            const result = await colocarEquipeNaModalidade(board.event.slug, openTeam.id, { modalityId, status });
+            setPending(null);
+            if (!result.ok) {
+              setNotice(result.fields?.modalityId ?? result.message);
+              return;
+            }
+            apply(result.data, status === "CONFIRMED" ? "Equipe confirmada na modalidade." : "Equipe na lista de espera.");
+          }}
+          onDetach={async (modalityId) => {
+            if (!window.confirm("Tirar a equipe desta modalidade? Se a vaga estava confirmada, ela passa para a próxima da lista de espera.")) return;
+            setPending(`modality:${modalityId}`);
+            const result = await tirarEquipeDaModalidade(board.event.slug, openTeam.id, modalityId);
+            setPending(null);
+            if (!result.ok) {
+              setNotice(result.message);
+              return;
+            }
+            apply(result.data, "Equipe retirada da modalidade.");
+          }}
           onSave={async (input) => {
             setPending(`save:${openTeam.id}`);
             const result = await editarEquipeNoPainel(board.event.slug, openTeam.id, input);
@@ -246,11 +302,31 @@ export function InscriptionDesk({ initial }: { initial: InscriptionBoard }) {
             <p className="text-sm text-[#7A6B86]">
               {girls.length} {girls.length === 1 ? "aluna" : "alunas"} em {teams.length} {teams.length === 1 ? "equipe" : "equipes"}
             </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <button type="button" className={quietButton} onClick={() => setAdding((value) => !value)}>
+                {adding ? "Fechar inclusão" : "Incluir equipe"}
+              </button>
             <div className="flex gap-1 rounded-full bg-white p-1">
               <FilterPill current={teamView} value="equipes" onClick={(value) => setTeamView(value === "alunas" ? "alunas" : "equipes")}>Equipes</FilterPill>
               <FilterPill current={teamView} value="alunas" onClick={(value) => setTeamView(value === "alunas" ? "alunas" : "equipes")}>Todas as alunas</FilterPill>
             </div>
+            </div>
           </div>
+          {adding ? (
+            <AddTeamForm
+              modalities={board.modalities ?? []}
+              pending={pending === "create-team"}
+              onCreate={async (input) => {
+                setPending("create-team");
+                const result = await incluirEquipeNoPainel(board.event.slug, input);
+                setPending(null);
+                if (!result.ok) return result.fields ?? { form: result.message };
+                setAdding(false);
+                apply(result.data, "Equipe incluída.");
+                return null;
+              }}
+            />
+          ) : null}
           {teams.length === 0 ? <Empty>Nenhuma equipe com esses filtros.</Empty> : null}
           {teamView === "alunas" ? (
             <ul className="overflow-hidden rounded-2xl bg-white">
@@ -393,16 +469,22 @@ function ParticipantCard({
 function TeamSheet({
   team,
   slug,
+  modalities,
   pending,
   onBack,
+  onPlace,
+  onDetach,
   onSave,
   onRemove,
   onDelete,
 }: {
   team: RoboticsTeam;
   slug: string;
+  modalities: ModalityVacancy[];
   pending: string | null;
   onBack: () => void;
+  onPlace: (modalityId: string, status: "CONFIRMED" | "WAITLIST") => Promise<void>;
+  onDetach: (modalityId: string) => Promise<void>;
   onSave: (input: {
     teamName: string;
     advisorName: string;
@@ -465,13 +547,13 @@ function TeamSheet({
         <Field label="Instituição de ensino" error={errors.institution}>
           <input className={fieldClass} value={institution} onChange={(event) => setInstitution(event.target.value)} required />
         </Field>
-        <div className="flex flex-wrap gap-2">
-          {team.modalities.map((item) => (
-            <span key={item.modalityId} className="rounded-full bg-[#F6F0FF] px-3 py-1 text-sm text-[#4C1D95]">
-              {item.name}: {slotLabel(item.status)}
-            </span>
-          ))}
-        </div>
+        <TeamModalities
+          team={team}
+          modalities={modalities}
+          pending={pending}
+          onPlace={onPlace}
+          onDetach={onDetach}
+        />
         <p className="text-sm">Inscrita em {when.format(new Date(team.createdAt))}</p>
         {team.withdrawnAt ? <p className="font-bold">Desistência em {when.format(new Date(team.withdrawnAt))}.</p> : null}
         <h3 className="text-2xl">Orientador</h3>
@@ -562,8 +644,8 @@ function TabButton({
   children,
 }: {
   current: string;
-  value: "people" | "teams";
-  onClick: (value: "people" | "teams") => void;
+  value: "people" | "teams" | "advisors";
+  onClick: (value: "people" | "teams" | "advisors") => void;
   children: string;
 }) {
   const active = current === value;
@@ -720,66 +802,318 @@ function slotLabel(status: RoboticsTeam["modalities"][number]["status"]) {
   return "cancelada";
 }
 
-function exportPeople(people: ParticipantInscription[]) {
-  download("participantes-mdx-2026.csv", [
-    ["Nome", "E-mail", "Telefone", "CPF", "Como soube", "Passaporte", "Situação", "Inscrita em"],
-    ...people.map((person) => [
-      person.name,
-      person.email,
-      person.phone,
-      formatCpf(person.cpf),
-      person.heard,
-      person.passportCode,
-      person.status,
-      when.format(new Date(person.createdAt)),
-    ]),
-  ]);
-}
+type AdvisorRow = {
+  key: string;
+  name: string;
+  email: string;
+  phone: string;
+  cpf: string;
+  institutions: string[];
+  teams: string[];
+};
 
-function exportTeams(teams: RoboticsTeam[]) {
-  const rows = [["Equipe", "Instituição", "Inscrita em", "Desistiu em", "Modalidades", "Orientador", "E-mail", "WhatsApp", "CPF do orientador", "Integrante", "CPF", "Nascimento", "Conta", "E-mail da conta", "Telefone da conta", "Instituição da conta", "Retirada em"]];
+function listAdvisors(teams: RoboticsTeam[], query: string): AdvisorRow[] {
+  const groups = new Map<string, RoboticsTeam[]>();
   for (const team of teams) {
-    const modalities = team.modalities.map((item) => `${item.name} (${slotLabel(item.status)})`).join(" | ");
-    const base = [
-      team.name,
-      team.institution,
-      when.format(new Date(team.createdAt)),
-      team.withdrawnAt ? when.format(new Date(team.withdrawnAt)) : "",
-      modalities,
-      team.advisorName,
-      team.advisorEmail,
-      team.advisorPhone,
-      formatCpf(team.advisorCpf),
-    ];
-    if (team.members.length === 0) {
-      rows.push([...base, "", "", "", "", "", "", "", ""]);
-      continue;
-    }
-    for (const member of team.members) {
-      rows.push([
-        ...base,
-        member.fullName,
-        formatCpf(member.cpf),
-        member.birthDate.split("-").reverse().join("/"),
-        member.linked ? (member.accountName ?? "vinculada") : "sem conta",
-        member.accountEmail ?? "",
-        member.accountPhone ?? "",
-        member.accountInstitution ?? "",
-        member.releasedAt ? when.format(new Date(member.releasedAt)) : "",
-      ]);
-    }
+    if (team.withdrawnAt) continue;
+    const key = advisorKey(team);
+    const group = groups.get(key) ?? [];
+    group.push(team);
+    groups.set(key, group);
   }
-  download("equipes-mdx-2026.csv", rows);
+  const rows: AdvisorRow[] = [];
+  for (const [key, group] of groups) {
+    const latest = [...group].sort((left, right) => right.createdAt.localeCompare(left.createdAt))[0];
+    if (!latest) continue;
+    const row: AdvisorRow = {
+      key,
+      name: latest.advisorName,
+      email: latest.advisorEmail,
+      phone: latest.advisorPhone,
+      cpf: latest.advisorCpf,
+      institutions: [...new Set(group.map((team) => team.institution))].sort((left, right) => left.localeCompare(right, "pt-BR")),
+      teams: group.map((team) => team.name).sort((left, right) => left.localeCompare(right, "pt-BR")),
+    };
+    if (!includes(query, [row.name, row.email, row.phone, row.cpf, ...row.institutions, ...row.teams])) continue;
+    rows.push(row);
+  }
+  return rows.sort((left, right) => left.name.localeCompare(right.name, "pt-BR"));
 }
 
-function download(filename: string, rows: string[][]) {
-  const csv = rows
-    .map((row) => row.map((cell) => `"${cell.replaceAll('"', '""')}"`).join(";"))
-    .join("\n");
-  const url = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8" }));
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  link.click();
-  URL.revokeObjectURL(url);
+function advisorKey(team: RoboticsTeam) {
+  const email = team.advisorEmail.trim().toLowerCase();
+  if (email) return `email:${email}`;
+  const cpf = team.advisorCpf.replace(/\D/g, "");
+  if (cpf) return `cpf:${cpf}`;
+  return `name:${team.advisorName.trim().toLowerCase()}`;
+}
+
+function exportAdvisorsPdf(title: string, advisors: AdvisorRow[]) {
+  downloadPdf("orientadores.pdf", buildPdf({
+    title: "Orientadores",
+    subtitle: title,
+    tables: [{
+      heading: `${advisors.length} ${advisors.length === 1 ? "orientador" : "orientadores"}`,
+      columns: [
+        { label: "Orientador", width: 140 },
+        { label: "E-mail", width: 160 },
+        { label: "WhatsApp", width: 90 },
+        { label: "Equipes", width: 125 },
+      ],
+      rows: advisors.map((advisor) => [
+        advisor.name,
+        advisor.email,
+        formatPhone(advisor.phone) || advisor.phone,
+        advisor.teams.join(", "),
+      ]),
+    }],
+  }));
+}
+
+function exportPeoplePdf(title: string, people: ParticipantInscription[]) {
+  downloadPdf("participantes.pdf", buildPdf({
+    title: "Participantes",
+    subtitle: title,
+    tables: [{
+      heading: `${people.length} ${people.length === 1 ? "participante" : "participantes"}`,
+      columns: [
+        { label: "Nome", width: 170 },
+        { label: "E-mail", width: 190 },
+        { label: "Telefone", width: 90 },
+        { label: "Passaporte", width: 70 },
+      ],
+      rows: people.map((person) => [person.name, person.email, person.phone, person.passportCode]),
+    }],
+  }));
+}
+
+function exportTeamsPdf(
+  title: string,
+  teams: RoboticsTeam[],
+  modality: string,
+  slot: string,
+  order: string[],
+) {
+  const names = modality === "todas" ? [...order] : order.filter((name) => name === modality);
+  if (modality !== "todas" && names.length === 0) names.push(modality);
+  downloadPdf("equipes-por-modalidade.pdf", buildPdf({
+    title: "Equipes por modalidade",
+    subtitle: title,
+    tables: names.flatMap((name) => {
+      const rows = teams
+        .flatMap((team) => {
+          const entry = team.modalities.find((item) => item.name === name);
+          if (!entry) return [];
+          if (slot !== "todas" && entry.status !== slot) return [];
+          if (slot === "todas" && entry.status === "CANCELLED") return [];
+          const mark = entry.status === "WAITLIST" ? " (lista de espera)" : entry.status === "CANCELLED" ? " (cancelada)" : "";
+          return [[`${team.name}${mark}`, team.advisorName]];
+        })
+        .sort((left, right) => left[0].localeCompare(right[0], "pt-BR"));
+      if (rows.length === 0) return [];
+      return [{
+        heading: `${name} · ${rows.length} ${rows.length === 1 ? "equipe" : "equipes"}`,
+        columns: [
+          { label: "Equipe", width: 260 },
+          { label: "Orientador", width: 255 },
+        ],
+        rows,
+      }];
+    }),
+  }));
+}
+
+function TeamModalities({
+  team,
+  modalities,
+  pending,
+  onPlace,
+  onDetach,
+}: {
+  team: RoboticsTeam;
+  modalities: ModalityVacancy[];
+  pending: string | null;
+  onPlace: (modalityId: string, status: "CONFIRMED" | "WAITLIST") => Promise<void>;
+  onDetach: (modalityId: string) => Promise<void>;
+}) {
+  const [modalityId, setModalityId] = useState("");
+  const [status, setStatus] = useState<"CONFIRMED" | "WAITLIST">("CONFIRMED");
+  const active = team.modalities.filter((item) => item.status !== "CANCELLED");
+  const taken = new Set(active.map((item) => item.modalityId));
+  const available = modalities.filter((item) => !taken.has(item.id));
+  const busy = pending?.startsWith("modality:") ?? false;
+
+  if (team.withdrawnAt) {
+    return (
+      <div className="flex flex-wrap gap-2">
+        {team.modalities.map((item) => (
+          <span key={item.modalityId} className="rounded-full bg-[#F6F0FF] px-3 py-1 text-sm text-[#4C1D95]">
+            {item.name}: {slotLabel(item.status)}
+          </span>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <h3 className="text-2xl">Modalidades</h3>
+      {active.map((item) => (
+        <div key={item.modalityId} className="flex flex-wrap items-center gap-2">
+          <span className="min-w-36 text-sm font-semibold">{item.name}</span>
+          <select
+            className={`${fieldClass} max-w-52`}
+            value={item.status === "WAITLIST" ? "WAITLIST" : "CONFIRMED"}
+            disabled={busy}
+            onChange={(event) => {
+              const next = event.target.value === "WAITLIST" ? "WAITLIST" : "CONFIRMED";
+              if (next !== item.status) void onPlace(item.modalityId, next);
+            }}
+          >
+            <option value="CONFIRMED">Confirmada</option>
+            <option value="WAITLIST">Lista de espera</option>
+          </select>
+          <button type="button" className="text-sm font-bold text-[#BE185D] underline" disabled={busy} onClick={() => void onDetach(item.modalityId)}>
+            Tirar
+          </button>
+        </div>
+      ))}
+      {available.length > 0 ? (
+        <div className="flex flex-wrap items-end gap-2">
+          <label className="flex min-w-48 flex-1 flex-col gap-1 text-sm text-[#7A6B86]">
+            Incluir em
+            <select className={fieldClass} value={modalityId} onChange={(event) => setModalityId(event.target.value)}>
+              <option value="">Escolha a modalidade</option>
+              {available.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.name} · {item.confirmed} de {item.slotLimit} confirmadas
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex flex-col gap-1 text-sm text-[#7A6B86]">
+            Vaga
+            <select className={fieldClass} value={status} onChange={(event) => setStatus(event.target.value === "WAITLIST" ? "WAITLIST" : "CONFIRMED")}>
+              <option value="CONFIRMED">Confirmada</option>
+              <option value="WAITLIST">Lista de espera</option>
+            </select>
+          </label>
+          <button
+            type="button"
+            className={quietButton}
+            disabled={busy || modalityId === ""}
+            onClick={() => void onPlace(modalityId, status)}
+          >
+            Incluir nesta modalidade
+          </button>
+        </div>
+      ) : (
+        <p className="text-sm text-[#7A6B86]">Esta equipe já está em todas as modalidades.</p>
+      )}
+    </div>
+  );
+}
+
+function AddTeamForm({
+  modalities,
+  pending,
+  onCreate,
+}: {
+  modalities: ModalityVacancy[];
+  pending: boolean;
+  onCreate: (input: {
+    teamName: string;
+    institution: string;
+    advisorName: string;
+    advisorEmail: string;
+    advisorPhone: string;
+    advisorCpf: string;
+    modalityIds: string[];
+    status: "CONFIRMED" | "WAITLIST";
+  }) => Promise<Record<string, string> | null>;
+}) {
+  const [teamName, setTeamName] = useState("");
+  const [institution, setInstitution] = useState("");
+  const [advisorName, setAdvisorName] = useState("");
+  const [advisorEmail, setAdvisorEmail] = useState("");
+  const [advisorPhone, setAdvisorPhone] = useState("");
+  const [advisorCpf, setAdvisorCpf] = useState("");
+  const [picked, setPicked] = useState<string[]>(modalities.length === 1 && modalities[0] ? [modalities[0].id] : []);
+  const [status, setStatus] = useState<"CONFIRMED" | "WAITLIST">("CONFIRMED");
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  return (
+    <form
+      className="grid gap-3 rounded-2xl bg-white p-4"
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (picked.length === 0) {
+          setErrors({ modalityIds: "Escolha ao menos uma modalidade." });
+          return;
+        }
+        void onCreate({
+          teamName,
+          institution,
+          advisorName,
+          advisorEmail,
+          advisorPhone,
+          advisorCpf,
+          modalityIds: picked,
+          status,
+        }).then((next) => setErrors(next ?? {}));
+      }}
+    >
+      <div>
+        <h2 className="font-heading text-2xl">Incluir equipe</h2>
+        <p className="text-sm text-[#7A6B86]">A vaga fica como você escolher, mesmo se a modalidade já estiver cheia.</p>
+      </div>
+      <Field label="Nome da equipe" error={errors.teamName}>
+        <input className={fieldClass} value={teamName} onChange={(event) => setTeamName(event.target.value)} required />
+      </Field>
+      <Field label="Instituição de ensino" error={errors.institution}>
+        <input className={fieldClass} value={institution} onChange={(event) => setInstitution(event.target.value)} required />
+      </Field>
+      <Field label="Orientador" error={errors.advisorName}>
+        <input className={fieldClass} value={advisorName} onChange={(event) => setAdvisorName(event.target.value)} required />
+      </Field>
+      <div className="grid gap-3 sm:grid-cols-3">
+        <Field label="E-mail" error={errors.advisorEmail}>
+          <input className={fieldClass} type="email" value={advisorEmail} onChange={(event) => setAdvisorEmail(event.target.value)} required />
+        </Field>
+        <Field label="WhatsApp" error={errors.advisorPhone}>
+          <input className={fieldClass} value={advisorPhone} onChange={(event) => setAdvisorPhone(event.target.value)} required />
+        </Field>
+        <Field label="CPF" error={errors.advisorCpf}>
+          <input className={fieldClass} value={advisorCpf} onChange={(event) => setAdvisorCpf(formatCpf(event.target.value))} required />
+        </Field>
+      </div>
+      <fieldset className="flex flex-col gap-2">
+        <legend className="text-sm text-[#7A6B86]">Modalidades</legend>
+        {modalities.length === 0 ? <p className="text-sm">Este evento ainda não tem modalidades.</p> : null}
+        {modalities.map((item) => (
+          <label key={item.id} className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={picked.includes(item.id)}
+              onChange={() => setPicked((current) => current.includes(item.id) ? current.filter((id) => id !== item.id) : [...current, item.id])}
+            />
+            {item.name}
+            <span className="text-[#7A6B86]">{item.confirmed} de {item.slotLimit} confirmadas</span>
+          </label>
+        ))}
+        {errors.modalityIds ? <span className="text-sm font-semibold text-[#BE185D]">{errors.modalityIds}</span> : null}
+      </fieldset>
+      <label className="flex max-w-xs flex-col gap-1 text-sm text-[#7A6B86]">
+        Vaga
+        <select className={fieldClass} value={status} onChange={(event) => setStatus(event.target.value === "WAITLIST" ? "WAITLIST" : "CONFIRMED")}>
+          <option value="CONFIRMED">Confirmada</option>
+          <option value="WAITLIST">Lista de espera</option>
+        </select>
+      </label>
+      {errors.form ? <p className="text-sm font-bold text-[#BE185D]">{errors.form}</p> : null}
+      <button type="submit" className={`${quietButton} w-fit`} disabled={pending || modalities.length === 0}>
+        {pending ? "Incluindo…" : "Incluir equipe"}
+      </button>
+    </form>
+  );
 }

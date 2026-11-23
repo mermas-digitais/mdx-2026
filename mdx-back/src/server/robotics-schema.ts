@@ -240,6 +240,61 @@ export const roboticsAdminUpdateSchema = z
 
 export type RoboticsAdminUpdate = z.infer<typeof roboticsAdminUpdateSchema>;
 
+const slotChoice = z.enum(["CONFIRMED", "WAITLIST"]);
+
+export const roboticsAdminCreateSchema = z
+  .object({
+    teamName: z
+      .string()
+      .trim()
+      .min(2, "Informe o nome da equipe.")
+      .max(80, "O nome da equipe pode ter no máximo 80 caracteres."),
+    advisorName: z.string().trim().min(2, "Informe o nome do orientador.").max(80),
+    advisorEmail: z
+      .string()
+      .trim()
+      .toLowerCase()
+      .regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, "Informe um e-mail válido."),
+    advisorPhone: z.string().trim().min(8, "Informe o WhatsApp com DDD.").max(20),
+    advisorCpf: z.string().trim(),
+    institution: z
+      .string()
+      .trim()
+      .min(2, "Informe a instituição de ensino.")
+      .max(120, "A instituição pode ter no máximo 120 caracteres."),
+    modalityIds: z.array(uuid).min(1, "Escolha ao menos uma modalidade."),
+    status: slotChoice,
+  })
+  .superRefine((value, ctx) => {
+    const phoneDigits = value.advisorPhone.replace(/\D/g, "").length;
+    if (phoneDigits !== 10 && phoneDigits !== 11) {
+      ctx.addIssue({ code: "custom", path: ["advisorPhone"], message: "Informe o WhatsApp com DDD." });
+    }
+    if (cpfError(value.advisorCpf)) {
+      ctx.addIssue({ code: "custom", path: ["advisorCpf"], message: "Informe um CPF válido." });
+    }
+    const modalities = new Set<string>();
+    value.modalityIds.forEach((id, index) => {
+      if (modalities.has(id)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["modalityIds", index],
+          message: "Escolha cada modalidade uma vez.",
+        });
+      }
+      modalities.add(id);
+    });
+  });
+
+export type RoboticsAdminCreate = z.infer<typeof roboticsAdminCreateSchema>;
+
+export const roboticsAdminModalitySchema = z.object({
+  modalityId: uuid,
+  status: slotChoice,
+});
+
+export type RoboticsAdminModality = z.infer<typeof roboticsAdminModalitySchema>;
+
 export const roboticsMemberAddSchema = z
   .object({
     fullName: z.string().trim().min(2, "Informe o nome da integrante.").max(80),
