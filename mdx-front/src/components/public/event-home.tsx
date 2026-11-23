@@ -43,6 +43,38 @@ function frameBox(x: number, y: number, width: number, height: number) {
   };
 }
 
+function PdfPreview({
+  title,
+  src,
+  downloadName,
+  label,
+}: {
+  title: string;
+  src: string;
+  downloadName: string;
+  label?: string;
+}) {
+  return (
+    <div className="flex w-full min-w-0 flex-col items-center gap-5">
+      {label ? (
+        <p className={`${paytone.className} text-center text-lg tracking-wide text-[#330043] md:text-xl`}>{label}</p>
+      ) : null}
+      <iframe
+        title={title}
+        src={`${src}#navpanes=0`}
+        className="h-[32rem] w-full rounded-[1.75rem] border border-[#E7E5E4] bg-white shadow-[0_10px_30px_rgb(51_0_67_/_0.06)]"
+      />
+      <a
+        href={src}
+        download={downloadName}
+        className={`${paytone.className} inline-flex items-center rounded-full bg-[#330043] px-8 py-3 text-sm tracking-wide text-white shadow-[0_8px_0_rgb(51_0_67_/_0.18)] transition-transform duration-300 hover:scale-105 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#330043] md:px-10 md:py-3.5 md:text-base`}
+      >
+        BAIXAR PDF
+      </a>
+    </div>
+  );
+}
+
 function NotebookScene() {
   return (
     <div className="relative mx-auto aspect-[578/647] w-full max-w-md">
@@ -163,6 +195,37 @@ export function EventHome({ event }: { event: PublicEvent }) {
         </div>
       </section>
 
+      <section
+        id="chaveamento"
+        aria-labelledby="chaveamento-titulo"
+        className="relative scroll-mt-28 overflow-hidden bg-[rgb(255_74_151_/_0.12)] px-4 py-12 md:px-8 md:py-16"
+      >
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 bg-[length:1437px_639px] bg-repeat opacity-20"
+          style={{ backgroundImage: "url(/marca/quadriculado.svg)" }}
+        />
+        <div className="relative mx-auto flex max-w-6xl flex-col items-center gap-8 md:flex-row md:items-center md:gap-10">
+          <h2 id="chaveamento-titulo" className="w-4/5 max-w-sm shrink-0 md:w-[42%] md:max-w-md">
+            <img src="/marca/confira-chaveamento.svg" alt="Confira o chaveamento" className="h-auto w-full" />
+          </h2>
+          <div className="flex w-full min-w-0 flex-col items-center gap-5">
+            <iframe
+              title="Equipes e chaveamento do 3º Desafio de Robótica Mermãs Digitais"
+              src="/marca/equipes-chaveamento.pdf#navpanes=0"
+              className="h-[32rem] w-full rounded-[1.75rem] border border-[#E7E5E4] bg-white shadow-[0_10px_30px_rgb(51_0_67_/_0.06)]"
+            />
+            <a
+              href="/marca/equipes-chaveamento.pdf"
+              download="Equipes_e_Chaveamento_3o_Desafio_de_Robotica_Mermas_Digitais.pdf"
+              className={`${paytone.className} inline-flex items-center rounded-full bg-[#330043] px-8 py-3 text-sm tracking-wide text-white shadow-[0_8px_0_rgb(51_0_67_/_0.18)] transition-transform duration-300 hover:scale-105 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#330043] md:px-10 md:py-3.5 md:text-base`}
+            >
+              BAIXAR PDF
+            </a>
+          </div>
+        </div>
+      </section>
+
       <section id="regulamento" aria-labelledby="regulamento-titulo" className="relative scroll-mt-28 overflow-hidden bg-white px-4 py-12 md:px-8 md:py-16">
         <div
           aria-hidden="true"
@@ -179,20 +242,21 @@ export function EventHome({ event }: { event: PublicEvent }) {
               alt="Desafio de robótica"
               className="h-auto w-full md:w-[54%]"
             />
-            <div className="relative w-full overflow-hidden rounded-[1.75rem] border border-[#E7E5E4] bg-white shadow-[0_10px_30px_rgb(51_0_67_/_0.06)] md:w-[46%]">
-              <img
-                src="/marca/regulamento-robotica-preview.png"
-                alt="Capa do regulamento oficial de robótica do MDX STEAM"
-                className="block h-auto w-full"
+            <div className="w-full md:w-[46%]">
+              <PdfPreview
+                title="Regulamento oficial de robótica do MDX STEAM"
+                src="/marca/regulamento-robotica.pdf"
+                downloadName="Regulamento Oficial Robótica MDX Steam.pdf"
               />
-              <a
-                href="/marca/regulamento-robotica.pdf"
-                download="Regulamento Oficial Robótica MDX Steam.pdf"
-                className={`${paytone.className} absolute bottom-6 left-1/2 z-10 inline-flex -translate-x-1/2 items-center rounded-full bg-[#330043] px-8 py-3 text-sm tracking-wide text-white shadow-[0_8px_0_rgb(51_0_67_/_0.18)] transition-transform duration-300 hover:scale-105 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#330043] md:bottom-8 md:px-10 md:py-3.5 md:text-base`}
-              >
-                BAIXAR PDF
-              </a>
             </div>
+          </div>
+          <div className="mx-auto mt-12 w-full max-w-md">
+            <PdfPreview
+              label="RETIFICAÇÃO Nº 01"
+              title="Retificação nº 01 do MDX STEAM 2026"
+              src="/marca/retificacao-n01.pdf"
+              downloadName="RETIFICACAO_N01_MDX_STEAM_2026_corrigida_v2.pdf"
+            />
           </div>
         </div>
       </section>
