@@ -371,11 +371,12 @@ model RoboticsTeam {
   advisorName      String    @map("advisor_name")
   advisorEmail     String    @map("advisor_email")
   advisorPhone     String    @map("advisor_phone")
-  advisorDocument  String    @map("advisor_document")
-  rulesAcceptedAt  DateTime  @map("rules_accepted_at")
-  withdrawnAt      DateTime? @map("withdrawn_at")
-  createdAt        DateTime  @default(now()) @map("created_at")
-  updatedAt        DateTime  @updatedAt @map("updated_at")
+  advisorDocument    String    @map("advisor_document")
+  rulesAcceptedAt    DateTime  @map("rules_accepted_at")
+  withdrawnAt        DateTime? @map("withdrawn_at")
+  advisorCheckedInAt DateTime? @map("advisor_checked_in_at")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
 
   event      Event                  @relation(fields: [eventId], references: [id], onDelete: Cascade)
   advisor    User                   @relation("RoboticsAdvisor", fields: [advisorUserId], references: [id], onDelete: Restrict)
@@ -394,10 +395,11 @@ model RoboticsTeamMember {
   fullName   String    @map("full_name")
   cpf        String    @db.VarChar(11)
   birthDate  DateTime  @map("birth_date") @db.Date
-  document   String
-  userId     String?   @map("user_id") @db.Uuid
-  releasedAt DateTime? @map("released_at")
-  createdAt  DateTime  @default(now()) @map("created_at")
+  document    String
+  userId      String?   @map("user_id") @db.Uuid
+  releasedAt  DateTime? @map("released_at")
+  checkedInAt DateTime? @map("checked_in_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
 
   team RoboticsTeam @relation(fields: [teamId], references: [id], onDelete: Cascade)
   user User?        @relation(fields: [userId], references: [id], onDelete: SetNull)

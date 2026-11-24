@@ -436,6 +436,7 @@ export type RoboticsMember = {
   accountPhone: string | null;
   accountInstitution: string | null;
   releasedAt: string | null;
+  checkedInAt: string | null;
 };
 
 export type RoboticsTeam = {
@@ -446,6 +447,7 @@ export type RoboticsTeam = {
   advisorEmail: string;
   advisorPhone: string;
   advisorCpf: string;
+  advisorCheckedInAt: string | null;
   withdrawnAt: string | null;
   createdAt: string;
   members: RoboticsMember[];
@@ -542,6 +544,7 @@ export type ParticipantInscription = {
   heard: string;
   passportCode: string;
   status: string;
+  checkedInAt: string | null;
   createdAt: string;
 };
 

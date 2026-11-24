@@ -24,6 +24,7 @@ export type RoboticsMemberView = {
   accountPhone: string | null;
   accountInstitution: string | null;
   releasedAt: string | null;
+  checkedInAt: string | null;
 };
 
 export type RoboticsSlotView = {
@@ -42,6 +43,7 @@ export type RoboticsTeamView = {
   advisorEmail: string;
   advisorPhone: string;
   advisorCpf: string;
+  advisorCheckedInAt: string | null;
   withdrawnAt: string | null;
   createdAt: string;
   members: RoboticsMemberView[];
@@ -82,6 +84,7 @@ type TeamRow = {
   advisor_email: string;
   advisor_phone: string;
   advisor_cpf: string | null;
+  advisor_checked_in_at: Date | null;
   withdrawn_at: Date | null;
   created_at: Date;
 };
@@ -98,6 +101,7 @@ type MemberRow = {
   account_phone: string | null;
   account_institution: string | null;
   released_at: Date | null;
+  checked_in_at: Date | null;
 };
 
 type SlotRow = {
@@ -622,7 +626,7 @@ export class RoboticsRepository implements OnModuleDestroy {
     return this.collect(
       `SELECT team.id, team.event_id, team.name, team.institution, team.advisor_user_id,
               team.advisor_name, team.advisor_email, team.advisor_phone, advisor.cpf AS advisor_cpf,
-              team.withdrawn_at, team.created_at
+              team.advisor_checked_in_at, team.withdrawn_at, team.created_at
        FROM robotics_teams team
        LEFT JOIN users advisor ON advisor.id = team.advisor_user_id
        WHERE team.event_id = $1 AND team.advisor_user_id = $2
@@ -635,7 +639,7 @@ export class RoboticsRepository implements OnModuleDestroy {
     return this.collect(
       `SELECT team.id, team.event_id, team.name, team.institution, team.advisor_user_id,
               team.advisor_name, team.advisor_email, team.advisor_phone, advisor.cpf AS advisor_cpf,
-              team.withdrawn_at, team.created_at
+              team.advisor_checked_in_at, team.withdrawn_at, team.created_at
        FROM robotics_teams team
        LEFT JOIN users advisor ON advisor.id = team.advisor_user_id
        WHERE team.event_id = $1
@@ -649,7 +653,7 @@ export class RoboticsRepository implements OnModuleDestroy {
     const teams = await this.collect(
       `SELECT team.id, team.event_id, team.name, team.institution, team.advisor_user_id,
               team.advisor_name, team.advisor_email, team.advisor_phone, advisor.cpf AS advisor_cpf,
-              team.withdrawn_at, team.created_at
+              team.advisor_checked_in_at, team.withdrawn_at, team.created_at
        FROM robotics_teams team
        LEFT JOIN users advisor ON advisor.id = team.advisor_user_id
        WHERE team.id = $1`,
@@ -1117,6 +1121,32 @@ export class RoboticsRepository implements OnModuleDestroy {
     }
   }
 
+  async setAdvisorPresence(eventId: string, teamId: string, present: boolean): Promise<boolean> {
+    const result = await this.pool.query(
+      `UPDATE robotics_teams
+       SET advisor_checked_in_at = CASE WHEN $3::boolean THEN NOW() ELSE NULL END,
+           updated_at = NOW()
+       WHERE id = $1 AND event_id = $2`,
+      [teamId, eventId, present],
+    );
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  async setMemberPresence(
+    eventId: string,
+    teamId: string,
+    memberId: string,
+    present: boolean,
+  ): Promise<boolean> {
+    const result = await this.pool.query(
+      `UPDATE robotics_team_members
+       SET checked_in_at = CASE WHEN $4::boolean THEN NOW() ELSE NULL END
+       WHERE id = $1 AND team_id = $2 AND event_id = $3`,
+      [memberId, teamId, eventId, present],
+    );
+    return (result.rowCount ?? 0) > 0;
+  }
+
   async onModuleDestroy(): Promise<void> {
     await this.pool.end();
   }
@@ -1155,7 +1185,7 @@ export class RoboticsRepository implements OnModuleDestroy {
     const [members, slots] = await Promise.all([
       this.pool.query<MemberRow>(
         `SELECT member.id, member.team_id, member.full_name, member.cpf, member.birth_date,
-                member.user_id, member.released_at, account.name AS account_name,
+                member.user_id, member.released_at, member.checked_in_at, account.name AS account_name,
                 account.email AS account_email,
                 registration.answers->>'phone' AS account_phone,
                 NULLIF(registration.answers->>'institution', '') AS account_institution
@@ -1189,6 +1219,7 @@ export class RoboticsRepository implements OnModuleDestroy {
       advisorEmail: team.advisor_email,
       advisorPhone: team.advisor_phone,
       advisorCpf: team.advisor_cpf ?? "",
+      advisorCheckedInAt: team.advisor_checked_in_at ? new Date(team.advisor_checked_in_at).toISOString() : null,
       withdrawnAt: team.withdrawn_at ? team.withdrawn_at.toISOString() : null,
       createdAt: team.created_at.toISOString(),
       members: members.rows
@@ -1204,6 +1235,7 @@ export class RoboticsRepository implements OnModuleDestroy {
           accountPhone: member.account_phone,
           accountInstitution: member.account_institution,
           releasedAt: member.released_at ? new Date(member.released_at).toISOString() : null,
+          checkedInAt: member.checked_in_at ? new Date(member.checked_in_at).toISOString() : null,
         })),
       modalities: slots.rows
         .filter((slot) => slot.team_id === team.id)

@@ -110,6 +110,37 @@ export class AdminEventsController {
     return this.events.deleteParticipant(eventId, registrationId);
   }
 
+  @Patch(':eventId/inscriptions/:registrationId/check-in')
+  @RequirePermission((user) => canAccessAdmin(user))
+  checkInInscription(
+    @Param('eventId') eventId: string,
+    @Param('registrationId') registrationId: string,
+    @Body() body: unknown,
+  ) {
+    return this.events.setParticipantPresence(eventId, registrationId, body);
+  }
+
+  @Patch(':eventId/robotics-teams/:teamId/advisor/check-in')
+  @RequirePermission((user) => canAccessAdmin(user))
+  checkInAdvisor(
+    @Param('eventId') eventId: string,
+    @Param('teamId') teamId: string,
+    @Body() body: unknown,
+  ) {
+    return this.events.setAdvisorPresence(eventId, teamId, body);
+  }
+
+  @Patch(':eventId/robotics-teams/:teamId/members/:memberId/check-in')
+  @RequirePermission((user) => canAccessAdmin(user))
+  checkInMember(
+    @Param('eventId') eventId: string,
+    @Param('teamId') teamId: string,
+    @Param('memberId') memberId: string,
+    @Body() body: unknown,
+  ) {
+    return this.events.setMemberPresence(eventId, teamId, memberId, body);
+  }
+
   @Post()
   @HttpCode(201)
   @RequirePermission((user) => canCreateEvent(user))

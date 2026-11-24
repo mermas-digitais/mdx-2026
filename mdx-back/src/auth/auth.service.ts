@@ -253,6 +253,27 @@ export class AuthService {
     return { token: await this.tokens.sign(panelUser), user: panelUser };
   }
 
+  async credenciamentoLogin(password: string): Promise<AuthSession> {
+    const key = 'credenciamento-login';
+    this.limiter.assertAllowed(key);
+    const expected = this.config.get<string>('CREDENCIAMENTO_PASSWORD') || 'admin123';
+    if (!sameSecret(password, expected)) {
+      this.limiter.recordFailure(key);
+      throw new UnauthorizedException('Senha incorreta.');
+    }
+    this.limiter.recordSuccess(key);
+    const admin = await this.users.findAdmin();
+    if (admin) return this.sessionFor(admin);
+    const deskUser = {
+      id: '00000000-0000-4000-8000-000000000001',
+      name: 'Credenciamento',
+      email: 'painel@mdx.local',
+      role: 'ADMIN' as const,
+      memberships: [],
+    };
+    return { token: await this.tokens.sign(deskUser), user: deskUser };
+  }
+
   async profile(userId: string): Promise<{ id: string; name: string; email: string; cpf: string | null }> {
     const stored = await this.users.findById(userId);
     if (!stored) throw new UnauthorizedException('Faça login para continuar.');

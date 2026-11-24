@@ -105,6 +105,12 @@ export class AuthController {
     return this.auth.panelLogin(body.password);
   }
 
+  @Post('credenciamento-login')
+  @HttpCode(200)
+  credenciamentoLogin(@Body() body: PanelLoginDto) {
+    return this.auth.credenciamentoLogin(body.password);
+  }
+
   @Post('otp/request')
   @HttpCode(200)
   requestOtp(@Body() body: RequestOtpDto) {
