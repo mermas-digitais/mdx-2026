@@ -661,7 +661,7 @@ function Classification({
         ))}
       </ol>
       <p className="mt-3 text-sm font-semibold text-[#4C1D95]/80">
-        Vitória na disputa vale 3, empate vale 1. Empate em pontos fica com a comissão.
+        Vitória na disputa vale 3, empate vale 1..
       </p>
     </div>
   );
@@ -1198,7 +1198,7 @@ function useArenaClock(preset: Preset, onPreset: (preset: Preset) => void) {
   const [phase, setPhase] = useState<Phase>("idle");
   const [intro, setIntro] = useState(3);
   const [run, setRun] = useState(0);
-  const [remaining, setRemaining] = useState(preset);
+  const [remaining, setRemaining] = useState<number>(preset);
   const durationRef = useRef<Preset>(preset);
   const endsAtRef = useRef<number | null>(null);
 
