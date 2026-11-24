@@ -661,7 +661,7 @@ function Classification({
         ))}
       </ol>
       <p className="mt-3 text-sm font-semibold text-[#4C1D95]/80">
-        Vitória na disputa vale 3, empate vale 1..
+        Vitória na disputa vale 3, empate vale 1. Empate em pontos fica com a comissão.
       </p>
     </div>
   );
