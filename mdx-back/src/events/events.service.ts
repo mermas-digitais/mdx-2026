@@ -124,6 +124,33 @@ export class EventsService {
     };
   }
 
+  async setParticipantPresence(idOrSlug: string, registrationId: string, payload: unknown) {
+    const event = await this.events.findByIdOrSlug(idOrSlug);
+    if (!event) throw new NotFoundException('Evento não encontrado.');
+    const present = presenceFlag(payload);
+    const updated = await this.events.setParticipantPresence(event.id, registrationId, present);
+    if (!updated) throw new NotFoundException('Inscrição não encontrada.');
+    return this.inscriptions(event.id);
+  }
+
+  async setAdvisorPresence(idOrSlug: string, teamId: string, payload: unknown) {
+    const event = await this.events.findByIdOrSlug(idOrSlug);
+    if (!event) throw new NotFoundException('Evento não encontrado.');
+    const present = presenceFlag(payload);
+    const updated = await this.robotics.setAdvisorPresence(event.id, teamId, present);
+    if (!updated) throw new NotFoundException('Equipe não encontrada.');
+    return this.inscriptions(event.id);
+  }
+
+  async setMemberPresence(idOrSlug: string, teamId: string, memberId: string, payload: unknown) {
+    const event = await this.events.findByIdOrSlug(idOrSlug);
+    if (!event) throw new NotFoundException('Evento não encontrado.');
+    const present = presenceFlag(payload);
+    const updated = await this.robotics.setMemberPresence(event.id, teamId, memberId, present);
+    if (!updated) throw new NotFoundException('Integrante não encontrada.');
+    return this.inscriptions(event.id);
+  }
+
   async updateParticipant(idOrSlug: string, registrationId: string, payload: unknown): Promise<{ ok: true }> {
     const event = await this.events.findByIdOrSlug(idOrSlug);
     if (!event) throw new NotFoundException('Evento não encontrado.');
@@ -794,6 +821,16 @@ function toActivityWrite(data: {
     requiresEnrollment: data.requiresEnrollment ?? false,
     grantsStamp: data.grantsStamp ?? false,
   };
+}
+
+const presenceSchema = z.object({
+  present: z.boolean(),
+});
+
+function presenceFlag(payload: unknown): boolean {
+  const parsed = presenceSchema.safeParse(payload);
+  if (!parsed.success) throw invalid(parsed.error);
+  return parsed.data.present;
 }
 
 const participantUpdateSchema = z

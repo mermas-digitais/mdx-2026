@@ -63,6 +63,7 @@ export type ParticipantRecord = {
   heard: string;
   passportCode: string;
   status: string;
+  checkedInAt: string | null;
   createdAt: string;
 };
 
@@ -843,10 +844,12 @@ export class EventsRepository implements OnModuleDestroy {
       heard: string | null;
       cpf: string | null;
       passport_code: string;
+      checked_in_at: Date | null;
     }>(
       `SELECT r.id,
               r.status,
               r.created_at,
+              r.checked_in_at,
               r.passport_code,
               r.answers->>'name' AS name,
               r.answers->>'email' AS email,
@@ -874,8 +877,21 @@ export class EventsRepository implements OnModuleDestroy {
       heard: row.heard ?? '',
       passportCode: row.passport_code,
       status: row.status,
+      checkedInAt: row.checked_in_at ? new Date(row.checked_in_at).toISOString() : null,
       createdAt: new Date(row.created_at).toISOString(),
     }));
+  }
+
+  async setParticipantPresence(eventId: string, registrationId: string, present: boolean): Promise<boolean> {
+    if (!UUID.test(eventId) || !UUID.test(registrationId)) return false;
+    const result = await this.pool.query(
+      `UPDATE registrations
+       SET checked_in_at = CASE WHEN $3::boolean THEN NOW() ELSE NULL END,
+           updated_at = NOW()
+       WHERE id = $1 AND event_id = $2`,
+      [registrationId, eventId, present],
+    );
+    return (result.rowCount ?? 0) > 0;
   }
 
   async updateParticipant(
